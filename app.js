@@ -14,7 +14,10 @@ app.set( 'port', process.env.PORT || 5000 );
 var jsonParser = bodyParser.json();
 var urlencodedParser = bodyParser.urlencoded({ extended: false })
 app.use(bodyParser.json({ type: 'application/json' }));
-app.get('/cloudbyzv1.0/sfdcObjects',urlencodedParser, function (req, res) {
+app.get('/api/cloudbyzv1.0/test',urlencodedParser, function (req, res) {
+    res.send(JSON.stringify({'Status': 'REST-API Running in AWS','Response':'200'}));
+});
+app.get('/api/cloudbyzv1.0/sfdcObjects',urlencodedParser, function (req, res) {
     //console.log(req);
     console.log(req.body.objects);
     let sfdcObjects =req.body.objects;
@@ -30,11 +33,6 @@ app.get('/cloudbyzv1.0/sfdcObjects',urlencodedParser, function (req, res) {
     // For security reasons, do not store AWS Credentials in your files. Use Amazon Cognito/ Http request.
     secretAccessKey: req.body.secretAccessKey
 });
-
-app.get('/cloudbyzv1.0/test',urlencodedParser, function (req, res) {
-    res.send(JSON.stringify({'Status': 'REST-API Running in AWS','Response':'200'}));
-});
-
 
 //Now that we are authenticated with AWS, lets create an insatnce of Dynamodb to perform required operations.
 var dynamodb = new AWS.DynamoDB();
