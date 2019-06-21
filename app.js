@@ -4,11 +4,11 @@ var jsforce        = require('jsforce');
 var bodyParser = require('body-parser')
 const AWS = require('aws-sdk');
 var app            = express();
-var async = require('asyncawait/async');
-var await = require('asyncawait/await');
+//var async = require('asyncawait/async');
+//var await = require('asyncawait/await');
 
-const checkTable = require('./checkIfTableExists.js');
-console.log(checkTable);
+//const checkTable = require('./checkIfTableExists.js');
+//console.log(checkTable);
 
 app.set( 'port', process.env.PORT || 5000 );
 var jsonParser = bodyParser.json();
@@ -30,6 +30,11 @@ app.get('/cloudbyzv1.0/sfdcObjects',urlencodedParser, function (req, res) {
     // For security reasons, do not store AWS Credentials in your files. Use Amazon Cognito/ Http request.
     secretAccessKey: req.body.secretAccessKey
 });
+
+app.get('/cloudbyzv1.0/test',urlencodedParser, function (req, res) {
+    res.send(JSON.stringify({'Status': 'REST-API Running in AWS','Response':'200'}));
+});
+
 
 //Now that we are authenticated with AWS, lets create an insatnce of Dynamodb to perform required operations.
 var dynamodb = new AWS.DynamoDB();
