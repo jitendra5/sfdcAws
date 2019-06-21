@@ -17,7 +17,7 @@ app.use(bodyParser.json({ type: 'application/json' }));
 app.get('/api/cloudbyzv1.0/test',urlencodedParser, function (req, res) {
     res.send(JSON.stringify({'Status': 'REST-API Running in AWS','Response':'200'}));
 });
-app.get('/api/cloudbyzv1.0/sfdcObjects',urlencodedParser, function (req, res) {
+app.post('/api/cloudbyzv1.0/sfdcObjects',urlencodedParser, function (req, res) {
     //console.log(req);
     console.log(req.body.objects);
     let sfdcObjects =req.body.objects;
