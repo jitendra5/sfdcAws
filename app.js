@@ -14,10 +14,10 @@ app.set( 'port', process.env.PORT || 5000 );
 var jsonParser = bodyParser.json();
 var urlencodedParser = bodyParser.urlencoded({ extended: false })
 app.use(bodyParser.json({ type: 'application/json' }));
-app.get('/api/cloudbyzv1.0/test',urlencodedParser, function (req, res) {
+app.get('/apiv1.0/cloudbyz/test',urlencodedParser, function (req, res) {
     res.send(JSON.stringify({'Status': 'REST-API Running in AWS','Response':'200'}));
 });
-app.post('/api/cloudbyzv1.0/sfdcObjects',urlencodedParser, function (req, res) {
+app.post('/apiv1.0/cloudbyz/sfdcObjects',urlencodedParser, function (req, res) {
     //console.log(req);
     console.log(req.body.objects);
     let sfdcObjects =req.body.objects;
@@ -590,6 +590,30 @@ main();
 
 
 
+});
+app.post('/apiv1.0/cloudbyz/verifyAws',urlencodedParser, function (req, res) {
+    logger.debug('l599: '+req.body.objects);
+    AWS.config.update({
+        region: req.body.region,
+        endpoint: req.body.endpoint,
+        // accessKeyId default can be used while using the downloadable version of DynamoDB.
+        // For security reasons, do not store AWS Credentials in your files. Use Amazon Cognito/ Http request.
+        accessKeyId: req.body.accessKeyId,
+        // secretAccessKey default can be used while using the downloadable version of DynamoDB.
+        // For security reasons, do not store AWS Credentials in your files. Use Amazon Cognito/ Http request.
+        secretAccessKey: req.body.secretAccessKey
+    });
+    var dynamodb = new AWS.DynamoDB();
+    var request = dynamodb.listTables();
+    request.send();
+    request.on('success', function(response) {
+    console.log('l599: '+"Success!");
+    res.send(JSON.stringify({'Status': 'AWS credentials are Verified.','statusCode':'200'}));
+  }).on('error', function(error, response) {
+    console.log('l617: '+error);
+    res.send(JSON.stringify({'Status': error.message ,'statusCode':error.statusCode}));
+  });
+    
 });
 
 http.createServer( app ).listen( app.get( 'port' ), function (){
