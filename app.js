@@ -1,6 +1,7 @@
 var express        = require( 'express' );
 var http           = require( 'http' );
 var jsforce        = require('jsforce');
+var log4js = require('log4js');
 var bodyParser = require('body-parser')
 const AWS = require('aws-sdk');
 var app            = express();
@@ -9,7 +10,8 @@ var app            = express();
 
 //const checkTable = require('./checkIfTableExists.js');
 //console.log(checkTable);
-
+const logger = log4js.getLogger();
+logger.level ='debug';
 app.set( 'port', process.env.PORT || 5000 );
 var jsonParser = bodyParser.json();
 var urlencodedParser = bodyParser.urlencoded({ extended: false })
