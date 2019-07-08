@@ -373,7 +373,7 @@ let batchOps = function runBatch(dynamodb,params,backoff){
     //logger.debug(dynamodb);
     //logger.debug(params);
     return new Promise((resolve,reject)=>{
-        setTimeout(()=>{
+        //setTimeout(()=>{
             dynamodb.batchWriteItem(params, function(err, data) {
                 if (err) {
                     logger.debug(err);
@@ -400,7 +400,7 @@ let batchOps = function runBatch(dynamodb,params,backoff){
                     }
                 }    
             });
-        },100*backoff)
+        //},100*backoff)
     })
 }
 let backoff=1;
