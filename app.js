@@ -1,27 +1,47 @@
 var express        = require( 'express' );
 var http           = require( 'http' );
 var jsforce        = require('jsforce');
-var log4js = require('log4js');
-var bodyParser = require('body-parser')
+var bodyParser = require('body-parser');
+var each = require('async-each');
+var async = require('asyncawait/async');
+var await = require('asyncawait/await');
 const AWS = require('aws-sdk');
 var app            = express();
-//var async = require('asyncawait/async');
-//var await = require('asyncawait/await');
+//var async = require("async");
+var log4js = require('log4js');
+let tStamp =Date.now();
+log4js.configure({ // configure to use all types in different files.
+    appenders: {
+        cheeseLogs: { type: 'file', base: 'logs/', filename: 'logs/debugLogs-'+tStamp+'.log' },
+        console: { type: 'console' },
+      },
+     categories: {
+        another: { appenders: ['console'], level: 'debug' },
+        default: { appenders: [ 'console','cheeseLogs'], level: 'debug' }
+    }
+});
 
-//const checkTable = require('./checkIfTableExists.js');
-//console.log(checkTable);
-const logger = log4js.getLogger();
-logger.level ='debug';
+const log4js_extend = require("log4js-extend");
+
+log4js_extend(log4js, {
+    path: __dirname,
+    format: "at @name (@file:@line:@column)"
+  });
+
+  var logger = log4js.getLogger('debug');
+
+//const logger = log4js.getLogger("category");
+//logger.level ='debug';
+
+const checkTable = require('./checkIfTableExists.js');
+
 app.set( 'port', process.env.PORT || 5000 );
 var jsonParser = bodyParser.json();
 var urlencodedParser = bodyParser.urlencoded({ extended: false })
 app.use(bodyParser.json({ type: 'application/json' }));
-app.get('/apiv1.0/cloudbyz/test',urlencodedParser, function (req, res) {
-    res.send(JSON.stringify({'Status': 'REST-API Running in AWS','Response':'200'}));
-});
-app.post('/apiv1.0/cloudbyz/sfdcObjects',urlencodedParser, function (req, res) {
-    //console.log(req);
-    console.log(req.body.objects);
+app.post('/api1.0/cloudbyz/sfdcObjects',urlencodedParser, function (req, res) {
+    //logger.debug(req);
+    logger.debug(req.body.objects);
     let sfdcObjects =req.body.objects;
 
   //We are trying to connect to any dynamoDB on any AWS instance.
@@ -37,29 +57,31 @@ app.post('/apiv1.0/cloudbyz/sfdcObjects',urlencodedParser, function (req, res) {
 });
 
 //Now that we are authenticated with AWS, lets create an insatnce of Dynamodb to perform required operations.
-var dynamodb = new AWS.DynamoDB();
+
+var dynamodb = new AWS.DynamoDB({apiVersion: '2012-08-10'});
 var counter=0;
 let tableCounter =0;
+let batchWriteCheck=0;
 
 function getFirstHundredTables() {
     // Setting URL and headers for request
             var params={
                 'Limit':100,
             };
-            console.log(params);
+            logger.debug(params);
     // Return new promise 
     return new Promise(function(resolve, reject) {
-    	// Do async job by calling the DynamoDB.
+        // Do async job by calling the DynamoDB.
         dynamodb.listTables(params, function(err, data) {
             if (err) {
-                console.log(err);
+                logger.debug(err);
                 counter++;
                 reject(err);
             }
             else {
                 var tables= data.TableNames;
-                //console.log(tables);
-                console.log('Length: '+tables.length);
+                //logger.debug(tables);
+                logger.debug('Length: '+tables.length);
                 counter++;
                 resolve(data);
             }
@@ -68,32 +90,40 @@ function getFirstHundredTables() {
 }
 function getNextHundredTables(lastTableName) {
     // Setting URL and headers for request
-            var params={
-                'Limit':100,
-                'ExclusiveStartTableName' : lastTableName
-            };
-            console.log(params);
+    var params;
+    if(lastTableName === ''){
+        params={
+            'Limit':100
+        };
+    }
+    else{
+        params={
+            'Limit':100,
+            'ExclusiveStartTableName' : lastTableName
+        };
+    }
+            logger.debug(params);
     // Return new promise 
     return new Promise(function(resolve, reject) {
-    	// Do async job by calling the DynamoDB.
+        // Do async job by calling the DynamoDB.
         dynamodb.listTables(params, function(err, data) {
             if (err) {
-                console.log(err);
-                counter++;
+                logger.debug(err);
+               //counter++;
                 reject(err);
             }
             else {
                 var tables= data.TableNames;
-                //console.log(tables);
-                console.log('Length: '+tables.length);
-                counter++;
+                //logger.debug(tables);
+                logger.debug('Length: '+tables.length);
+                //counter++;
                 resolve(data);
             }
         });
     })
 }
-let sfdcConnFn =function callJSForce(){
-    console.log('Calling JSFORCE now.!!!');
+let sfdcConnFn =function callJSForce(tables){
+    logger.debug('Calling JSFORCE now.!!!');
     return new Promise(function(resolve, reject) {
         var conn = new jsforce.Connection({
             // you can change loginUrl to connect to sandbox or prerelease env.
@@ -101,56 +131,83 @@ let sfdcConnFn =function callJSForce(){
             });
             conn.login('amazon.ctms@cloudbyz.com', 'Amazon@20193EN18u7qa9ZGQiT8Aofdwg7y', function(err, userInfo) {
             if (err) { 
-                reject('Salesforce connection rejected.');
+                var resp={
+                    con :'error',
+                    status:'400'
+                };
+                reject(resp);
                 console.error(err); 
             }
             else{
-                //console.log(conn.instanceUrl);
-                console.log("User ID: " + userInfo.id);
-                console.log("Org ID: " + userInfo.organizationId);
-                resolve(conn);
+                //logger.debug(conn.instanceUrl);
+                logger.debug("User ID: " + userInfo.id);
+                logger.debug("Org ID: " + userInfo.organizationId);
+                var resp={
+                    con :conn,
+                    status:'200',
+                    tables:tables
+                };
+                resolve(resp);
             }//sucess conn else
             });//conn login fn.
     
     })
 }
+let splitArrayIntoChuncks = function chunkArray(myArray, chunk_size){
+    logger.debug('Split Array is getting called...');
+    var index = 0;
+    var arrayLength = myArray.length;
+    logger.debug('arrayLength: '+arrayLength);
+    return new Promise((resolve,reject)=>{
+    var tempArray = [];
+    for (index = 0; index < arrayLength; index += chunk_size) {
+        myChunk = myArray.slice(index, index+chunk_size);
+        // Do something if you want with the group
+        tempArray.push(myChunk);
+    }
+        logger.debug(tempArray.length);
+        resolve(tempArray);
+    });
+}
 let tableStatus = function verifyTables(sfdcObjects,dynamoTables){
     let objs= sfdcObjects.split(',');
-    console.log(sfdcObjects);
-    console.log(objs);
-    //console.log(dynamoTables);
-    var sfdcObjStatus={};
+    logger.debug(sfdcObjects);
+    logger.debug(objs);
+    var sfdcObjStatus=[];
     return new Promise((resolve,reject)=>{
         for(var i=0;i<objs.length;i++){
+            let jsObj ={};
             if(dynamoTables.includes(objs[i])){
-                sfdcObjStatus[objs[i]] = 'TableExists';
+                jsObj[objs[i]] = 'TableExists';
+                sfdcObjStatus.push(jsObj);
             }
             else{
-                sfdcObjStatus[objs[i]] = 'NoTable';
+                jsObj[objs[i]] = 'NoTable';
+                sfdcObjStatus.push(jsObj);
             }
         }
         resolve(sfdcObjStatus);
     })
 }
-let tableAvailable = function isTableAvailable(tableName){
+let tableAvailable = function isTableAvailable(tableName, avilStr){
     return new Promise((resolve,reject)=>{
         var params = {
             TableName: tableName 
           };
-          dynamodb.waitFor('tableExists', params, function(err, data) {
+          dynamodb.waitFor(avilStr, params, function(err, data) {
             if (err) {
-                console.log(err, err.stack); 
+                logger.debug(err, err.stack); 
                 reject(err);
             }
             else  {
-                console.log(data);
+                //logger.debug(data);
                 resolve(data);
             }       
           });
     })
 }
 let crtTable = function createTable(tableName){
-    console.log('creating table for: '+ tableName);
+   // logger.debug('creating table for: '+ tableName);
     var params = {
         TableName : tableName,
         KeySchema: [
@@ -173,15 +230,13 @@ let crtTable = function createTable(tableName){
     return new Promise((resolve,reject)=>{
         dynamodb.createTable(params, function(err, data) {
             if (err) {
-                console.log(err, err.stack); 
-                resolve(tableName+':'+'NotCreated');
+                logger.debug(err, err.stack); 
+                resolve({[tableName] : 'NotCreated'});
             }
             else {
-                console.log('Table created.');
-                //console.log(data);
-                let isTableAvail =tableAvailable(tableName);
+                let isTableAvail =tableAvailable(tableName,'tableExists');
                 isTableAvail.then(()=>{
-                    resolve(tableName+':'+'created');
+                    resolve({[tableName] : 'created'});
                 })
                 
             }
@@ -189,8 +244,32 @@ let crtTable = function createTable(tableName){
     
 })
 }
+let deleteOps =function delTable(tableName){
+    var params = { 
+        TableName : tableName
+    };
+    return new Promise((resolve,reject)=>{
+    dynamodb.deleteTable(params, function(err, data) {
+        if (err) {
+            logger.debug("Unable to delete table. Error JSON:", JSON.stringify(err, null, 2));
+            resolve({[tableName] : 'NotDeleted','error':[err]});
+        } else {
+            logger.debug("Deleted table. Table description JSON:", JSON.stringify(data, null, 2));
+            let isTableAvail =tableAvailable(tableName,'tableNotExists');
+                isTableAvail.then(()=>{
+                    //resolve({[tableName] : 'Deleted'});
+                    logger.debug(tableName+ ' Deleted Successfully!!');
+                    return crtTable(tableName);
+                })
+                .then((res)=>{
+                    resolve(res);
+                })
+            }
+    });
+})
+}
 let bckTable = function backupTable(tableName){
-    console.log('starting backup for table: '+ tableName);
+    logger.debug('starting backup for table: '+ tableName);
     var params = {
         BackupName: tableName+'-backup', /* required */
         TableName: tableName /* required */
@@ -199,82 +278,73 @@ let bckTable = function backupTable(tableName){
     return new Promise((resolve,reject)=>{
         dynamodb.createBackup(params, function(err, data) {
             if (err) {
-                console.log(tableName+':'+'NotBackedup');
-                resolve(tableName+':'+'NotBackedup');
+                logger.debug(tableName+':'+'NotBackedup');
+                resolve({[tableName] : 'NotBackedup'});
             } 
             else   {
-                console.log(tableName+':'+'Backedup'); 
-                resolve(tableName+':'+'Backedup');
+                logger.debug(tableName+':'+'Backedup'); 
+                resolve({[tableName] : 'Backedup'});
             }          
           });
-          
     })
 }
-let tableOps = function createOrBackupTable(tables){
-    console.log('---TABLE OPS----');
-    console.log(tables);
-    let tableOpsResult ={};
-    let tableKeys=[];
-    for (var key in tables) {
-        if (tables.hasOwnProperty(key)) {
-            console.log(key + " -> " + tables[key]);
-            tableKeys.push(key);
-        }
-    }
-    console.log(tableKeys);
+let crtBckTable = function createOrBackupTable(tableObj){
     return new Promise((resolve,reject)=>{
-        let k=0;
-        let totalKeyslen =tableKeys.length;
-        let tableIter =function(tableName){
-            if(k<totalKeyslen){
-                var keyVal =tableKeys[k];
-                console.log('keyVal: '+ keyVal);
-                console.log('tables[keyVal]: '+ tables[keyVal]);
-                if(tables[keyVal] === 'TableExists'){
-                    console.log('--> INSIDE Backup TABLE');
-                    var backupTable = bckTable(tableName);
-                    backupTable.then((backupTableResp)=>{
-                        console.log(tableName+' Backedup Successfully!!!!');
-                        var resp = backupTableResp.split(':');
-                        tableOpsResult[resp[0]]=resp[1];
-                        k++;
-                        if(k<totalKeyslen){
-                            let nexttable =tableKeys[k];
-                            tableIter(nexttable);
-                        }
-                        else{
-                            resolve(tableOpsResult);
-                        }
-                    })
-                }
-                else if(tables[keyVal]=='NoTable'){
-                    console.log('--> INSIDE NO TABLE');
-                    var createTable = crtTable(tableName);
-                    createTable.then((createTableResp)=>{
-                        //console.log(createTableResp);
-                        var resp = createTableResp.split(':');
-                        tableOpsResult[resp[0]]=resp[1];
-                        console.log(tableName+' created Successfully!!!!');
-                        k++;
-                        if(k<totalKeyslen){
-                            let nexttable =tableKeys[k];
-                            tableIter(nexttable);
-                        }
-                        else{
-                            resolve(tableOpsResult);
-                        }
-                        
-                    })
-                } 
-            }
+        logger.debug(tableObj);
+        logger.debug(typeof tableObj);
+        logger.debug(Object.values(tableObj));
+        if(Object.values(tableObj).includes('TableExists')){
+            let backupTable = bckTable(Object.keys(tableObj)[0]);
+            backupTable.then((backupRes)=>{
+                resolve(backupRes);
+            })
         }
-        console.log('266: tableKeys[0]: '+ tableKeys[0]);
-        tableIter(tableKeys[0]);
+        else if(Object.values(tableObj).includes('NoTable')){
+            let createTable = crtTable(Object.keys(tableObj)[0]);
+            createTable.then((createRes)=>{
+                resolve(createRes);
+            })
+        }
+    })
+}
+
+let chooseCreateOrDeleteCreate = function handleInsertData(tableObj,con,db){
+    return new Promise((resolve,reject)=>{
+        logger.debug(tableObj);
+        logger.debug(typeof tableObj);
+        logger.debug(Object.values(tableObj));
+        if(Object.values(tableObj).includes('created')){
+            let insertData = processData(Object.keys(tableObj)[0],con,db);
+            insertData.then((insDataRes)=>{
+                resolve(insDataRes);
+            })
+        }
+        else if(Object.values(tableObj).includes('Backedup')){
+            let deleteTable = deleteOps(Object.keys(tableObj)[0]);
+            deleteTable.then((deleteRes)=>{
+                let insertData = processData(Object.keys(tableObj)[0],con,db);
+                insertData.then((insDataRes)=>{
+                    resolve(insDataRes);
+                })
+            })
+        }
     })
 
 }
+let tableOps = function createOrBackupObjects(tables){
+    logger.debug('---TABLE OPS----');
+      let createBackupTables = tables.map((table) =>crtBckTable(table));
+      return Promise.all(createBackupTables);
+}
+
+let CRUDOps = function processDataObjects(tables,con,db){
+    logger.debug('---CRUD OPS----');
+      let crudTables = tables.map((table) =>chooseCreateOrDeleteCreate(table,con,db));
+      return Promise.all(crudTables);
+}
+
 let sfdcFields = function getFieldsOfObject(tableName,con){
-    console.log('272: Getting fields for: '+tableName );
+    logger.debug('272: Getting fields for: '+tableName );
     return new Promise((resolve,reject)=>{
         var fullNames = [tableName];
 
@@ -285,35 +355,43 @@ let sfdcFields = function getFieldsOfObject(tableName,con){
                 resolve(emptyArr);
             }
             else{
-                //console.log('283: Object : ' + meta.label);
+                //logger.debug('283: Object : ' + meta.label);
                 var fields=[];
                 for(var i=0;i<meta.fields.length;i++){
                 fields.push(meta.fields[i].name);
                 }
-                console.log('288: count of fields: '+ fields.length);
-                //console.log(fields);
+                logger.debug('288: count of fields: '+ fields.length);
+                //logger.debug(fields);
                 resolve(fields);
             }
           });
    })
 }
 let batchOps = function runBatch(dynamodb,params){
+    //logger.debug(dynamodb);
+    //logger.debug(params);
     return new Promise((resolve,reject)=>{
         dynamodb.batchWriteItem(params, function(err, data) {
             if (err) {
-                console.log(err);
+                logger.debug(err);
                 resolve('failed');
             }
             else {
-                console.log(data); 
+                logger.debug(data);
+                var params = {};
+                params.RequestItems = data.UnprocessedItems; 
+                if(Object.keys(params.RequestItems).length != 0) {
+                    batchOps(dynamodb,params);
+                }
                 resolve('success');
             }    
         });
     })
 }
+/*
 let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength,totalData,dynamodb){
     return new Promise((resolve,reject)=>{
-        console.log('Start of batch, dataLength :'+ dataLength);
+        logger.debug('Start of batch, dataLength :'+ dataLength);
                 var params = {
                     RequestItems: {
                     }
@@ -340,44 +418,176 @@ let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength
                     }
                     PutRequest['Item']=Item;
                     pRequest['PutRequest'] =PutRequest;
-                    //console.log(pRequest);
+                    //logger.debug(pRequest);
                     params.RequestItems[objectName].push(pRequest);
                     }
                     var batchOpsCall = batchOps(dynamodb,params);
                     batchOpsCall.then((res)=>{
-                        console.log('batch ops for '+ objectName+ ' : '+res);
-                        if(dataLength - 25 > 0){
-                            console.log('After batch ran, dataLength :'+ dataLength-end);
+                        logger.debug('batch ops for '+ objectName+ ' : '+res);
+                        let remaingData =dataLength-25;
+                        logger.debug('dataLength: '+dataLength);
+                        logger.debug('end: '+end);
+                        logger.debug('After batch ran, dataLength :'+ remaingData);
+                        if(dataLength - 25 > 0 && dataLength >25){
                             batchWriteAwsIterator(objectName,end,end+25,dataLength-25,totalData,dynamodb);
                         } 
                         else{
-                            resolve({objectName : 'success'});
+                            logger.debug('Resolving the batchWriteAwsIterator');
+                            resolve('Data Inserted');
                         }
                     })
                     
     })
-}
-let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
+}*/
+/*let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength,totalData,dynamodb){
     return new Promise((resolve,reject)=>{
-        var count=0; var check25=25;
-        if(data.records.length>0){
-            let batchCall =batchWriteAwsIterator(tableName,count,check25,data.records.length,data,dynamodb);
-            batchCall.then((batchResult)=>{
-                console.log(batchResult);
-                resolve(batchResult);
-            })
-        }
+        logger.debug('Start of batch, dataLength :'+ dataLength);
+                var params = {
+                    RequestItems: {
+                    }
+                };
+                params.RequestItems[objectName] =[];
+                for(var i=start;i<totalData.records.length && i< end;i++){
+                    var recordKeys =[];
+                    for(var k in totalData.records[i]) 
+                        recordKeys.push(k);
+                    var pRequest={};
+                    var PutRequest={};
+                    var Item ={};
+                    for(var j=0;j<recordKeys.length;j++){
+                        var field=recordKeys[j];
+                        var value= totalData.records[i][field];
+                        var valObj={};
+                        if(value === undefined || value == null){
+                            valObj['S']='NULL';
+                        }
+                        else{
+                            valObj['S']=value.toString();
+                        }
+                        Item[field] =valObj;
+                    }
+                    PutRequest['Item']=Item;
+                    pRequest['PutRequest'] =PutRequest;
+                    //logger.debug(pRequest);
+                    params.RequestItems[objectName].push(pRequest);
+                    }
+                    var batchOpsCall = batchOps(dynamodb,params);
+                    var x = batchOpsCall.then((res)=>{
+                        logger.debug('batch ops for '+ objectName+ ' : '+res);
+                        if(dataLength - 25 > 0){
+                            logger.debug('After batch ran, dataLength :'+ dataLength-end);
+                            return batchWriteAwsIterator(objectName,end,end+25,dataLength-25,totalData,dynamodb);
+                           
+                        } 
+                        else{
+                            logger.debug('RESOLVED IN THE ITERATOR');
+                            logger.debug(objectName);
+                            return {[objectName] : 'success'};
+                        }
+                       
+                    });
+                    resolve(x);
+    })
+}*/
+
+let batchWriteAwsIterator= function insertBatch(tableName,split,con,dynamodb){
+    return new Promise((resolve,reject)=>{
+        logger.debug('Start of batch...'+ tableName);
+                var params = {
+                    RequestItems: {
+                    }
+                };
+                params.RequestItems[tableName] =[];
+                for(var i=0;i<split.length;i++){
+                    var recordKeys =[];
+                    for(var k in split[i]) 
+                        recordKeys.push(k);
+                    var pRequest={};
+                    var PutRequest={};
+                    var Item ={};
+                    for(var j=0;j<recordKeys.length;j++){
+                        var field=recordKeys[j];
+                        var value= split[i][field];
+                        var valObj={};
+                        if(value === undefined || value == null){
+                            valObj['S']='NULL';
+                        }
+                        else{
+                            valObj['S']=value.toString();
+                        }
+                        Item[field] =valObj;
+                    }
+                    PutRequest['Item']=Item;
+                    pRequest['PutRequest'] =PutRequest;
+                    params.RequestItems[tableName].push(pRequest);
+                    }
+                    var batchOpsCall = batchOps(dynamodb,params);
+                    batchOpsCall.then((res)=>{
+                        logger.debug('batch ops for '+ tableName+ ' : '+res);
+                        resolve('Batch for Split Ended.'+tableName);
+                    });
     })
 }
+
+let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
+    let splitArray =[];
+    return new Promise((resolve,reject)=>{
+        let chuncks =splitArrayIntoChuncks(data.records,20);
+        chuncks.then((res)=>{
+            logger.debug(res.length);
+            splitArray=res;
+            let runBatchIteratorOnEachChunck = splitArray.map((split) => batchWriteAwsIterator(tableName,split,con,dynamodb));
+             Promise.all(runBatchIteratorOnEachChunck).then((res)=>{
+                 logger.debug(res);
+                 resolve({[tableName]:'DataInserted'});
+             });
+        })
+    })
+}
+
+function handleQueryMore(tableName,result,conn,dynamodb) {
+    logger.debug('Inside handleQueryMore method---'+result);
+    return new Promise((resolve,reject)=>{
+        conn.queryMore(result, function(err, resultMore) {
+        if (err) {
+            logger.debug(err);
+        }
+        //do stuff with result
+        else {
+            //logger.debug('result: '+ result.records.length);
+            logger.debug('resultMore: '+ resultMore.records.length);
+            logger.debug('resultMore done: '+ resultMore.done);
+            logger.debug('Next resultMore Record: '+ resultMore.records[0].Id);
+            if(resultMore.records.length){
+                var batchWriteAWSCall = new batchWriteAWS(tableName,resultMore,conn,dynamodb);  
+                batchWriteAWSCall.then((res)=>{
+                    if (!resultMore.done) //didn't pull all records
+                    {
+                    logger.debug('Next Result Record: '+ resultMore.records[0].Id);
+                    logger.debug('next url: '+ resultMore.nextRecordsUrl);
+                    return handleQueryMore(tableName,resultMore.nextRecordsUrl,conn,dynamodb);
+                    }
+                    else{
+                        //return 'completed ';
+                        resolve({[tableName]: 'DataInserted'});
+                    }
+                });
+            }
+            }
+        });
+    })
+    
+  }
+
 let getData = function getDataForFields(tableName,con,dynamodb){
     
     return new Promise((resolve,reject)=>{
-        console.log('298: Getting data for : '+ tableName);
+        logger.debug('Getting data for : '+ tableName);
         var fieldsForObject =[];
         let getFields =sfdcFields(tableName,con);
         getFields.then((fields)=>{
             fieldsForObject =fields;
-            //console.log(fieldsForObject);
+            //logger.debug(fieldsForObject);
             if(fieldsForObject.length==0){
                 resolve(tableName+ ':'+'NoDataInserted');
             }
@@ -388,212 +598,185 @@ let getData = function getDataForFields(tableName,con,dynamodb){
                 }
                 soql = soql.substring(0, soql.length - 1);
                 soql = 'Select '+ soql+' From '+ tableName;
-                console.log('314: soql: '+ soql);
+                logger.debug('soql: '+ soql);
                 var records = [];
                 con.query(soql, function(err, result) {
                 if (err) { 
-                    return console.error(err);
+                    console.error(err);
                  }
                  else{
-                     //console.log("fetched : " + result.records.length);
-                     var batchWriteAWSCall = new batchWriteAWS(tableName,result,con,dynamodb);  
-                     batchWriteAWSCall.then((fresult)=>{
-                        resolve(fresult);
-                     })
+                    logger.debug(tableName+ ' result: '+ result.records.length);
+                    logger.debug(tableName+' resultMore: '+ result.records.length);
+                    logger.debug(tableName+' resultMore done: '+ result.done);
                     
-                 }
-                //console.log(result.records);
-                //console.log("total : " + result.totalSize);
-                
+                    var nextData =result.done;
+                    /*if(result.records.length >0){
+                        var batchWriteAWSCall = new batchWriteAWS(tableName,result,con,dynamodb);  
+                        batchWriteAWSCall.then((fresult)=>{
+                            logger.debug('THEN of batchWriteAWS...');
+                            logger.debug(fresult);
+                            if(!nextData){
+                                let x = handleQueryMore(tableName,result.nextRecordsUrl,con,dynamodb);
+                                resolve({[tableName]: 'DataInserted'});
+                            }
+                            else{
+                                resolve({[tableName]: 'DataInserted'});
+                            }
+                            
+                        })
+                    }*/
+                    if(result.done){
+                        if(result.records.length >0){
+                            var batchWriteAWSCall = new batchWriteAWS(tableName,result,con,dynamodb);  
+                            batchWriteAWSCall.then((response)=>{
+                                logger.debug(response);
+                                resolve(response);
+                            })
+                        }
+                    }
+                    else{
+                        logger.debug(tableName+' next url: '+ result.nextRecordsUrl);
+                        if(result.records.length >0){
+                            var batchWriteAWSCall = new batchWriteAWS(tableName,result,con,dynamodb);  
+                            batchWriteAWSCall.then((response)=>{
+                                logger.debug(response);
+                                return handleQueryMore(tableName,result.nextRecordsUrl,con,dynamodb);
+                            })
+                            .then((handleQueryMoreRes)=>{
+                                logger.debug(handleQueryMoreRes);
+                                resolve(handleQueryMoreRes);
+                            })
+                        }
+                    }
+                     
+                 }//else
                 });
             }
         })
     })
 }
-let processData = function formatDataForBatchWriteOps(tables,con,dynamodb){
-    console.log('328: Process DATA FOR CREATED TABLES.....');
-    console.log(tables);
-    let dataOpsResult ={};
-    let noTables =tables.length;
-    console.log('332: No. of Tables: '+ noTables);
-    console.log('333. tableCounter now: '+ tableCounter);
+
+let processData = function formatDataForBatchWriteOps(table,con,dynamodb){
+    logger.debug('PROCESS DATA FOR CREATED TABLE.....: '+table);
     return new Promise((resolve,reject)=>{
-        if(tableCounter<noTables){
-            let getDataCall = getData(tables[tableCounter],con,dynamodb);
+            let getDataCall = getData(table,con,dynamodb);
             getDataCall.then((getDataCallResp)=>{
-                tableCounter++;
-                console.log('338: tablecounter: '+tableCounter);
-                processData(tables,con,dynamodb);
+                logger.debug('Data Processes completed for: '+ table);
+                resolve(getDataCallResp);
             })
-        }
-        else{
-            resolve('Success');
-        }
-       
     })
 }
-
-let insetOpsBackedupTables = function insertDataForTablesBackedup(tables){
-    console.log('INSIDE INSERT DATA FOR BACKEDUP TABLES.....');
-    let dataOpsResult ={};
-    console.log(tables);
-    return new Promise((resolve,reject)=>{
-        
-    })
-
-}
-
 var userDetails=[];
 
-function main(lastTableName) {
-    var con;
-//this function should return a promise, we resolve or reject it based on a condition.
-    var first100Tables = getFirstHundredTables(lastTableName);
-    first100Tables.then(function(result) {
-        console.log("Fetched first 100 tables..");
-        userDetails = userDetails.concat(result.TableNames);
-        // Use user details from here
-            if(result.LastEvaluatedTableName !='' && result.TableNames.length==100){
-                var  checkNext100Tables = getNextHundredTables(result.LastEvaluatedTableName);
-                checkNext100Tables.then(function(result){
-                    userDetails = userDetails.concat(result.TableNames);
-                    console.log("Fetched tables from 101 t0 200...");
-                    if(result.LastEvaluatedTableName !='' && result.TableNames.length==100){
-                        var checkForTables = getNextHundredTables(result.LastEvaluatedTableName);
-                        checkForTables.then(function(result){
-                            console.log("Fetched tables from 200 t0 256...");
-                            userDetails = userDetails.concat(result.TableNames);
-                            console.log(userDetails);
-                            console.log('userDetails length: '+ userDetails.length);
-                            console.log("Cretaing sfdc conn after fetching 256 tables....");
-                            var sfdcCon =sfdcConnFn();
-                            sfdcCon.then(function(con) {
-                                console.log('connection url: '+ con.instanceUrl);
-                                con=con;
-                                let sfdbStatus = tableStatus(sfdcObjects,userDetails);
-                                sfdbStatus.then(function(response){
-                                    console.log(response);
-                                    let tableOperations = tableOps(response);
-                                    tableOperations.then((tableOpsResult)=>{
-                                        console.log('---tableOpsResult---');
-                                        console.log(tableOpsResult);
-                                        let keysOfCreatedTables=[];
-                                        let keysOfBackupedTables=[];
-                                        for (var key in tableOpsResult) {
-                                            if (tableOpsResult.hasOwnProperty(key)) {
-                                                console.log(key + " -> " + tableOpsResult[key]);
-                                                if(tableOpsResult[key]=='created' || tableOpsResult[key]=='NotCreated'){
-                                                    keysOfCreatedTables.push(key);
-                                                }
-                                                else if(tableOpsResult[key]=='NotBackedup'|| tableOpsResult[key]=='Backedup'){
-                                                    keysOfBackupedTables.push(key);
-                                                }
-                                                
-                                            }
-                                        }
-                                        console.log('keysOfCreatedTables: '+ keysOfCreatedTables );
-                                        console.log('keysOfBackupedTables: '+ keysOfBackupedTables );
-                                        let processDataOps = processData(keysOfCreatedTables,con,dynamodb);
-                                        processDataOps.then((processDataOpsRes)=>{
-                                            console.log(processDataOpsRes.length);
-                                        })
-                                    })
-                                })
-                            })
-                        })
-                    }
-                    else{
-                        console.log("Cretaing sfdc conn after fetching 200 tables....");
-                        var sfdcCon =sfdcConnFn();
-                        sfdcCon.then(function(result) {
-                            console.log('connection url: '+ result.instanceUrl);
-                            con=result;
-                            let sfdbStatus = tableStatus(sfdcObjects,userDetails);
-                                sfdbStatus.then(function(response){
-                                    console.log(response);
-                                    let tableOperations = tableOps(response);
-                                    tableOperations.then((tableOpsResult)=>{
-                                        console.log('---tableOpsResult---');
-                                        console.log(tableOpsResult);
-                                        let keysOfCreatedTables=[];
-                                        let keysOfBackupedTables=[];
-                                        for (var key in tableOpsResult) {
-                                            if (tableOpsResult.hasOwnProperty(key)) {
-                                                console.log(key + " -> " + tableOpsResult[key]);
-                                                if(tableOpsResult[key]=='created' || tableOpsResult[key]=='NotCreated'){
-                                                    keysOfCreatedTables.push(key);
-                                                }
-                                                else if(tableOpsResult[key]=='NotBackedup'|| tableOpsResult[key]=='Backedup'){
-                                                    keysOfBackupedTables.push(key);
-                                                }
-                                                
-                                            }
-                                        }
-                                        console.log('keysOfCreatedTables: '+ keysOfCreatedTables );
-                                        console.log('keysOfBackupedTables: '+ keysOfBackupedTables );
-                                        let processDataOps = processData(keysOfCreatedTables,con,dynamodb);
-                                        processDataOps.then((processDataOpsRes)=>{
-                                            console.log(processDataOpsRes.length);
-                                        })
-                                    })
-                                })
-                        })
-                    }
-                })
+let getExistingDynamoDbTables = function getTables(lastTableName){
+    return new Promise((resolve,reject)=>{
+        let first100Tables =getNextHundredTables();
+        first100Tables.then((result)=>{
+            if(result !== undefined && result.hasOwnProperty('TableNames')){
+                logger.debug("Fetched "+result.TableNames.length+" tables..");
+                userDetails = userDetails.concat(result.TableNames);
+                //logger.debug( result);
+                logger.debug("result.LastEvaluatedTableName: "+ result.LastEvaluatedTableName);
+                logger.debug("result.TableNames.length: "+ result.TableNames.length);
+                if(result.LastEvaluatedTableName !='' && result.TableNames.length==100){
+                    return getNextHundredTables(result.LastEvaluatedTableName);
+                }
+                else{
+                    resolve(userDetails);
+                }
             }
             else{
-                console.log("Cretaing sfdc conn after fetching 100 tables....");
-                var sfdcCon =sfdcConnFn();
-                sfdcCon.then(function(result) {
-                    console.log('connection url: '+ result.instanceUrl);
-                    con= result;
-                    let sfdbStatus = tableStatus(sfdcObjects,userDetails);
-                                sfdbStatus.then(function(response){
-                                    console.log(response);
-                                    let tableOperations = tableOps(response);
-                                    tableOperations.then((tableOpsResult)=>{
-                                        console.log('---tableOpsResult---');
-                                        console.log(tableOpsResult);
-                                        let keysOfCreatedTables=[];
-                                        let keysOfBackupedTables=[];
-                                        for (var key in tableOpsResult) {
-                                            if (tableOpsResult.hasOwnProperty(key)) {
-                                                console.log(key + " -> " + tableOpsResult[key]);
-                                                if(tableOpsResult[key]=='created' || tableOpsResult[key]=='NotCreated'){
-                                                    keysOfCreatedTables.push(key);
-                                                }
-                                                else if(tableOpsResult[key]=='NotBackedup'|| tableOpsResult[key]=='Backedup'){
-                                                    keysOfBackupedTables.push(key);
-                                                }
-                                                
-                                            }
-                                        }
-                                        console.log('keysOfCreatedTables: '+ keysOfCreatedTables );
-                                        console.log('keysOfBackupedTables: '+ keysOfBackupedTables );
-                                        let processDataOps = processData(keysOfCreatedTables,con,dynamodb);
-                                        processDataOps.then((processDataOpsRes)=>{
-                                            console.log(processDataOpsRes.length);
-                                        })
+                resolve(userDetails);
+            }
+        })
+        .then((result)=>{
+            //next hundered tables
+            if(result !== undefined && result.hasOwnProperty('TableNames')){
+                logger.debug("Fetched "+result.TableNames.length+" tables..");
+                userDetails = userDetails.concat(result.TableNames);
+                logger.debug("result.LastEvaluatedTableName: "+ result.LastEvaluatedTableName);
+                logger.debug("result.TableNames.length: "+ result.TableNames.length);
+                if(result.LastEvaluatedTableName !='' && result.TableNames.length==100){
+                    return getNextHundredTables(result.LastEvaluatedTableName);
+                }
+                else{
+                    resolve(userDetails);
+                }
 
-                                    })
-                                })
-                })
+            }
+            else{
+                resolve(userDetails);
             }
             
-    }, function(err) {
-        console.log(err);
-    })
+        })
+        .then((result)=>{
+            //next 56 tables. As DynamoDb has max. 256 tables.
+            if(result!==undefined && result.hasOwnProperty('TableNames')){
+                logger.debug("Fetched "+result.TableNames.length+" tables..");
+                userDetails = userDetails.concat(result.TableNames);
+                logger.debug("result.LastEvaluatedTableName: "+ result.LastEvaluatedTableName);
+                logger.debug("result.TableNames.length: "+ result.TableNames.length);
+                resolve(userDetails);
+            }
+            else{
+                resolve(userDetails);
+            }
+            
+        })
+        .catch((error)=>{
+            logger.debug(error);
+        })
+
+    });
 }
 
-//starting the thread execution.
+function main() {
+    var con;
+    var db =dynamodb;
+    let getTables = getExistingDynamoDbTables();
+    var totalTables=[];
+    getTables.then((result)=>{
+        logger.debug("#####Finally total fetched Tables: "+result.length);
+        //logger.debug(result);
+        return sfdcConnFn(result);
+    })
+    .then((result)=>{
+        //logger.debug(result);
+        logger.debug('####SFDC con status: '+result.status);
+        if(result.status !='400'){
+            con = result.con;
+            totalTables = totalTables.concat(result.tables);
+            return tableStatus(sfdcObjects,result.tables);
+        }
+    })
+    .then((tableStatus)=>{
+        logger.debug('Selected objects will classified wheather they have a table in Dynamodb or not..');
+        logger.debug(tableStatus);
+        return tableOps(tableStatus);
+    })
+    .then((tableOpsResult)=>{
+        logger.debug('Tables will be created if doesnt exist or will be Backedup if present...');
+        logger.debug(tableOpsResult);
+       return CRUDOps(tableOpsResult,con,db);
+
+    })
+    .then((result)=>{
+        logger.debug('LAST...');
+        logger.debug(result);
+        res.end(result);
+    })
+
+}
+
+//starting the Event loop execution.
 main();
 
 
-
-
-
 });
-app.post('/apiv1.0/cloudbyz/verifyAws',urlencodedParser, function (req, res) {
+app.get('/api1.0/cloudbyz/test',urlencodedParser, function (req, res) {
+    res.send(JSON.stringify({'Status': 'SFDC-DynamoDB REST-API Running in AWS','Response':'200'}));
+});
+app.post('/api1.0/cloudbyz/verifyAws',urlencodedParser, function (req, res) {
     logger.debug('l599: '+req.body.objects);
     AWS.config.update({
         region: req.body.region,
@@ -617,8 +800,7 @@ app.post('/apiv1.0/cloudbyz/verifyAws',urlencodedParser, function (req, res) {
   });
     
 });
-
 http.createServer( app ).listen( app.get( 'port' ), function (){
-  console.log( 'Express server listening on port ' + app.get( 'port' ));
+  logger.debug( '######Cloudbyz Express server listening on port: ' + app.get( 'port' ));
 });
 
