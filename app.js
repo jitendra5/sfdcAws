@@ -3,8 +3,8 @@ var http           = require( 'http' );
 var jsforce        = require('jsforce');
 var bodyParser = require('body-parser');
 var each = require('async-each');
-//var async = require('asyncawait/async');
-//var await = require('asyncawait/await');
+var async = require('asyncawait/async');
+var await = require('asyncawait/await');
 const AWS = require('aws-sdk');
 var app            = express();
 //var async = require("async");
@@ -33,7 +33,7 @@ log4js_extend(log4js, {
 //const logger = log4js.getLogger("category");
 //logger.level ='debug';
 
-//const checkTable = require('./checkIfTableExists.js');
+const checkTable = require('./checkIfTableExists.js');
 
 app.set( 'port', process.env.PORT || 5000 );
 var jsonParser = bodyParser.json();
@@ -367,13 +367,9 @@ let sfdcFields = function getFieldsOfObject(tableName,con){
           });
    })
 }
-/*let delayBatch = function avoidProvisonedThroughputError(dynamodb,params,msecs){
-    setTimeout(()=>{
-        return batchOps(dynamodb,params);
-    },msecs)
-}*/
+
 let failedBatched=[];
-let batchOps = function runBatch(dynamodb,params){
+let batchOps = function runBatch(dynamodb,params,backoff){
     //logger.debug(dynamodb);
     //logger.debug(params);
     return new Promise((resolve,reject)=>{
@@ -381,8 +377,16 @@ let batchOps = function runBatch(dynamodb,params){
             dynamodb.batchWriteItem(params, function(err, data) {
                 if (err) {
                     logger.debug(err);
-                    failedBatched.push(params);
-                    resolve('failed');
+                    if(err.code =='ProvisionedThroughputExceededException'){
+                        //failedBatched.push(params);
+                        //resolve('failed');
+                        logger.debug('HANDLING ProvisionedThroughputExceededException----');
+                        setTimeout(()=>{
+                            batchOps(dynamodb,params);
+                            resolve('success');
+                        },200*backoff);
+                    }
+                    
                 }
                 else {
                     logger.debug(data);
@@ -391,15 +395,15 @@ let batchOps = function runBatch(dynamodb,params){
                     if(Object.keys(params.RequestItems).length != 0) {
                         setTimeout(()=>{
                             batchOps(dynamodb,params);
-                        },500);
+                            resolve('success');
+                        },200*backoff);
                     }
-                    resolve('success');
                 }    
             });
-        },500)
+        },200*backoff)
     })
 }
-
+let backoff=1;
 let batchWriteAwsIterator= function insertBatch(tableName,split,con,dynamodb){
     return new Promise((resolve,reject)=>{
         logger.debug('Start of batch...'+ tableName);
@@ -432,8 +436,9 @@ let batchWriteAwsIterator= function insertBatch(tableName,split,con,dynamodb){
                     pRequest['PutRequest'] =PutRequest;
                     params.RequestItems[tableName].push(pRequest);
                     }
-                    var batchOpsCall = batchOps(dynamodb,params);
+                    var batchOpsCall = batchOps(dynamodb,params,backoff);
                     batchOpsCall.then((res)=>{
+                        backoff++;
                         logger.debug('batch ops for '+ tableName+ ' : '+res);
                         resolve('Batch for Split Ended.'+tableName);
                     });
