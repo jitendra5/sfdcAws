@@ -33,7 +33,7 @@ log4js_extend(log4js, {
 //const logger = log4js.getLogger("category");
 //logger.level ='debug';
 
-const checkTable = require('./checkIfTableExists.js');
+//const checkTable = require('./checkIfTableExists.js');
 
 app.set( 'port', process.env.PORT || 5000 );
 var jsonParser = bodyParser.json();
