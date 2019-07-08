@@ -384,7 +384,7 @@ let batchOps = function runBatch(dynamodb,params,backoff){
                         setTimeout(()=>{
                             batchOps(dynamodb,params);
                             resolve('success');
-                        },200*backoff);
+                        },100*backoff);
                     }
                     
                 }
@@ -394,13 +394,13 @@ let batchOps = function runBatch(dynamodb,params,backoff){
                     params.RequestItems = data.UnprocessedItems; 
                     if(Object.keys(params.RequestItems).length != 0) {
                         setTimeout(()=>{
-                            batchOps(dynamodb,params);
+                            batchOps(dynamodb,params,backoff);
                             resolve('success');
-                        },200*backoff);
+                        },100*backoff);
                     }
                 }    
             });
-        },200*backoff)
+        },100*backoff)
     })
 }
 let backoff=1;
