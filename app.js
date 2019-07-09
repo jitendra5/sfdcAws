@@ -153,7 +153,7 @@ let sfdcConnFn =function callJSForce(tables){
     
     })
 }
-let splitArrayIntoChuncks = function chunkArray(myArray, chunk_size){
+/*let splitArrayIntoChuncks = function chunkArray(myArray, chunk_size){
     logger.debug('Split Array is getting called...');
     var index = 0;
     var arrayLength = myArray.length;
@@ -168,7 +168,7 @@ let splitArrayIntoChuncks = function chunkArray(myArray, chunk_size){
         logger.debug(tempArray.length);
         resolve(tempArray);
     });
-}
+}*/
 let tableStatus = function verifyTables(sfdcObjects,dynamoTables){
     let objs= sfdcObjects.split(',');
     logger.debug(sfdcObjects);
@@ -367,9 +367,13 @@ let sfdcFields = function getFieldsOfObject(tableName,con){
           });
    })
 }
-
-let failedBatched=[];
-let batchOps = function runBatch(dynamodb,params,backoff){
+/*let delayBatch = function avoidProvisonedThroughputError(dynamodb,params,msecs){
+    setTimeout(()=>{
+        return batchOps(dynamodb,params);
+    },msecs)
+}*/
+/*let failedBatched=[];
+let batchOps = function runBatch(dynamodb,params){
     //logger.debug(dynamodb);
     //logger.debug(params);
     return new Promise((resolve,reject)=>{
@@ -378,14 +382,15 @@ let batchOps = function runBatch(dynamodb,params,backoff){
                 if (err) {
                     logger.debug(err);
                     if(err.code =='ProvisionedThroughputExceededException'){
-                        //failedBatched.push(params);
+                        failedBatched.push(params);
                         //resolve('failed');
+                        logger.debug(failedBatched);
                         logger.debug('HANDLING ProvisionedThroughputExceededException----');
-                        setTimeout(()=>{
+                        /*setTimeout(()=>{
                             batchOps(dynamodb,params);
-                            resolve('success');
-                        },100*backoff);
-                    }
+                            resolve(failedBatched);
+                        },1000);*/
+                    /*}
                     
                 }
                 else {
@@ -394,16 +399,18 @@ let batchOps = function runBatch(dynamodb,params,backoff){
                     params.RequestItems = data.UnprocessedItems; 
                     if(Object.keys(params.RequestItems).length != 0) {
                         setTimeout(()=>{
-                            batchOps(dynamodb,params,backoff);
-                            resolve('success');
-                        },100*backoff);
+                            batchOps(dynamodb,params);
+                        },1000);
+                    }
+                    else{
+                        resolve('success');
                     }
                 }    
             });
-        //},100*backoff)
+        //},200*backoff)
     })
-}
-let backoff=1;
+}*/
+/*let backoff=1;
 let batchWriteAwsIterator= function insertBatch(tableName,split,con,dynamodb){
     return new Promise((resolve,reject)=>{
         logger.debug('Start of batch...'+ tableName);
@@ -436,7 +443,7 @@ let batchWriteAwsIterator= function insertBatch(tableName,split,con,dynamodb){
                     pRequest['PutRequest'] =PutRequest;
                     params.RequestItems[tableName].push(pRequest);
                     }
-                    var batchOpsCall = batchOps(dynamodb,params,backoff);
+                    var batchOpsCall = batchOps(dynamodb,params);
                     batchOpsCall.then((res)=>{
                         backoff++;
                         logger.debug('batch ops for '+ tableName+ ' : '+res);
@@ -447,9 +454,10 @@ let batchWriteAwsIterator= function insertBatch(tableName,split,con,dynamodb){
                         logger.debug('batch ops for '+ tableName+ ' : '+res);
                         resolve('Batch for Split Ended.'+tableName);
                     });*/
-    })
-}
+   // })
+//}*/
 
+/*let batchCheck=0;
 let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
     let splitArray =[];
     return new Promise((resolve,reject)=>{
@@ -457,15 +465,112 @@ let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
         chuncks.then((res)=>{
             logger.debug(res.length);
             splitArray=res;
-            let runBatchIteratorOnEachChunck = splitArray.map((split) => batchWriteAwsIterator(tableName,split,con,dynamodb));
+            //try introducing delay here and see if the batch iterator can also be slowed.
+            let backoff=0;
+            let runBatchIteratorOnEachChunck = splitArray.map((split,backoff) => {
+                setTimeout(()=>{
+                    batchWriteAwsIterator(tableName,split,con,dynamodb);
+                },100*backoff);
+                backoff++;
+            });
              Promise.all(runBatchIteratorOnEachChunck).then((res)=>{
                  logger.debug(res);
                  resolve({[tableName]:'DataInserted'});
              });
-        })
+             /*if(batchCheck < res.length){
+                logger.debug('Inside batchCheck: '+ batchCheck + ' res.length: '+res.length );
+                batchWriteAwsIterator(tableName,res[batchCheck],con,dynamodb);
+                batchCheck++;
+             }
+             else{
+                 logger.debug('All Chuncks inserted through batch...');
+                 resolve('batch Success');
+             }*/
+       /* })
+    })
+}*/
+let batchOps = function runBatch(dynamodb,params){
+    //logger.debug(dynamodb);
+    //logger.debug(params);
+    return new Promise((resolve,reject)=>{
+        dynamodb.batchWriteItem(params, function(err, data) {
+            if (err) {
+                logger.debug(err);
+                resolve('failed');
+            }
+            else {
+                logger.debug(data); 
+                resolve('success');
+            }    
+        });
+    })
+}
+let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength,totalData,dynamodb){
+    return new Promise((resolve,reject)=>{
+        logger.debug('Start of batch, dataLength :'+ dataLength);
+                var params = {
+                    RequestItems: {
+                    }
+                };
+                params.RequestItems[objectName] =[];
+                for(var i=start;i<totalData.records.length && i< end;i++){
+                    var recordKeys =[];
+                    for(var k in totalData.records[i]) 
+                        recordKeys.push(k);
+                    var pRequest={};
+                    var PutRequest={};
+                    var Item ={};
+                    for(var j=0;j<recordKeys.length;j++){
+                        var field=recordKeys[j];
+                        var value= totalData.records[i][field];
+                        var valObj={};
+                        if(value === undefined || value == null){
+                            valObj['S']='NULL';
+                        }
+                        else{
+                            valObj['S']=value.toString();
+                        }
+                        Item[field] =valObj;
+                    }
+                    PutRequest['Item']=Item;
+                    pRequest['PutRequest'] =PutRequest;
+                    //logger.debug(pRequest);
+                    params.RequestItems[objectName].push(pRequest);
+                    }
+                    var batchOpsCall = batchOps(dynamodb,params);
+                    var x = batchOpsCall.then((res)=>{
+                        logger.debug('batch ops for '+ objectName+ ' : '+res);
+                        if(dataLength - 25 > 0){
+                            logger.debug('After batch ran, dataLength :'+ dataLength-end);
+                            return batchWriteAwsIterator(objectName,end,end+25,dataLength-25,totalData,dynamodb);
+                           
+                        } 
+                        else{
+                            logger.debug('RESOLVED IN THE ITERATOR');
+                            logger.debug(objectName);
+                            return {[objectName] : 'success'};
+                        }
+                       
+                    });
+                    resolve(x);
     })
 }
 
+let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
+    return new Promise((resolve,reject)=>{
+        var count=0; var check25=25;
+        if(data.records.length>0){
+            let batchCall =batchWriteAwsIterator(tableName,count,check25,data.records.length,data,dynamodb);
+            //let xx= 
+            batchCall.then((batchResult)=>{
+                logger.debug(batchResult);
+                //return batchResult;
+                resolve(batchResult);
+            });
+            //resolve(xx);
+        }
+    })
+}
 function handleQueryMore(tableName,result,conn,dynamodb) {
     logger.debug('Inside handleQueryMore method---'+result);
     return new Promise((resolve,reject)=>{
@@ -531,21 +636,6 @@ let getData = function getDataForFields(tableName,con,dynamodb){
                     logger.debug(tableName+' resultMore done: '+ result.done);
                     
                     var nextData =result.done;
-                    /*if(result.records.length >0){
-                        var batchWriteAWSCall = new batchWriteAWS(tableName,result,con,dynamodb);  
-                        batchWriteAWSCall.then((fresult)=>{
-                            logger.debug('THEN of batchWriteAWS...');
-                            logger.debug(fresult);
-                            if(!nextData){
-                                let x = handleQueryMore(tableName,result.nextRecordsUrl,con,dynamodb);
-                                resolve({[tableName]: 'DataInserted'});
-                            }
-                            else{
-                                resolve({[tableName]: 'DataInserted'});
-                            }
-                            
-                        })
-                    }*/
                     if(result.done){
                         if(result.records.length >0){
                             var batchWriteAWSCall = new batchWriteAWS(tableName,result,con,dynamodb);  
@@ -684,7 +774,10 @@ function main() {
     .then((result)=>{
         logger.debug('LAST...');
         logger.debug(result);
-        res.end(result);
+        //res.end(result);
+    })
+    .catch((error)=>{
+        logger.debug(error);
     })
 
 }
