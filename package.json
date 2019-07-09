@@ -9,17 +9,24 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "async": "^3.1.0",
+    "async-each": "^1.0.3",
     "asyncawait": "^1.0.8",
     "aws-sdk": "^2.476.0",
+    "backoff-promise": "^1.0.0",
     "body-parser": "^1.19.0",
     "dynamodb": "^1.2.0",
+    "es6-promise-pool": "^2.5.0",
     "express": "^4.17.1",
-    "http": "0.0.0",
     "jsforce": "^1.9.1",
-    "log4js": "^4.4.0",
+    "log4js": "^4.3.2",
     "log4js-extend": "^0.2.1",
+    "logger": "0.0.1",
     "node-salesforce-connection": "^2.3.1",
     "nodemon": "^1.19.1",
+    "p-limit": "^2.2.0",
+    "p-queue": "^6.0.2",
+    "tiny-async-pool": "^1.0.4",
     "xmlhttprequest": "^1.8.0"
   }
 }
