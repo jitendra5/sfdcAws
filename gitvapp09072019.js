@@ -58,7 +58,7 @@ app.post('/api1.0/cloudbyz/sfdcObjects',urlencodedParser, function (req, res) {
 
 //Now that we are authenticated with AWS, lets create an insatnce of Dynamodb to perform required operations.
 
-var dynamodb = new AWS.DynamoDB({apiVersion: '2012-08-10',maxRetries: 15, retryDelayOptions: {base: 200}});
+var dynamodb = new AWS.DynamoDB({apiVersion: '2012-08-10'});
 var counter=0;
 let tableCounter =0;
 let batchWriteCheck=0;
