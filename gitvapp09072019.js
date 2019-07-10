@@ -599,7 +599,7 @@ function handleQueryMore(tableName,result,conn,dynamodb) {
             logger.debug('Next resultMore Record: '+ resultMore.records[0].Id);
             if(resultMore.records.length){
                 var batchWriteAWSCall = new batchWriteAWS(tableName,resultMore,conn,dynamodb);  
-                batchWriteAWSCall.then((res)=>{
+                let yy = batchWriteAWSCall.then((res)=>{
                     logger.debug('Resolved batchWriteAWS---in handleQueryMore');
                     if (!resultMore.done) //didn't pull all records
                     {
@@ -609,9 +609,10 @@ function handleQueryMore(tableName,result,conn,dynamodb) {
                     }
                     else{
                         //return 'completed ';
-                        resolve({[tableName]: 'DataInserted'});
+                        return({[tableName]: 'DataInserted'});
                     }
                 });
+                resolve(yy);
             }
             }
         });
