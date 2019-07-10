@@ -496,11 +496,17 @@ let batchOps = function runBatch(dynamodb,params){
         dynamodb.batchWriteItem(params, function(err, data) {
             if (err) {
                 logger.debug(err);
-                resolve('failed');
+                batchOps(dynamodb,params);
+                resolve('DataInserted');
             }
             else {
                 logger.debug(data); 
-                resolve('success');
+                var unProcessParam = {};
+                unProcessParam.RequestItems = data.UnprocessedItems;
+                if(Object.keys(unProcessParam.RequestItems).length != 0) {
+                    batchOps(dynamodb,unProcessParam);
+                }
+                resolve('DataInserted');
             }    
         });
     })
@@ -569,12 +575,12 @@ let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
         if(data.records.length>0){
             //let backoffVar=0;
             let batchCall =batchWriteAwsIterator(tableName,count,check25,data.records.length,data,dynamodb);
-            let xx= batchCall.then((batchResult)=>{
+            batchCall.then((batchResult)=>{
                 logger.debug(batchResult);
-                return batchResult;
-                //resolve(batchResult);
+                //return batchResult;
+                resolve(batchResult);
             });
-            resolve(xx);
+            //resolve(xx);
         }
     })
 }
@@ -594,6 +600,7 @@ function handleQueryMore(tableName,result,conn,dynamodb) {
             if(resultMore.records.length){
                 var batchWriteAWSCall = new batchWriteAWS(tableName,resultMore,conn,dynamodb);  
                 batchWriteAWSCall.then((res)=>{
+                    logger.debug('Resolved batchWriteAWS---in handleQueryMore');
                     if (!resultMore.done) //didn't pull all records
                     {
                     logger.debug('Next Result Record: '+ resultMore.records[0].Id);
@@ -647,6 +654,7 @@ let getData = function getDataForFields(tableName,con,dynamodb){
                         if(result.records.length >0){
                             var batchWriteAWSCall = new batchWriteAWS(tableName,result,con,dynamodb);  
                             batchWriteAWSCall.then((response)=>{
+                                logger.debug('Resolved batchWriteAWS---in getData');
                                 logger.debug(response);
                                 resolve(response);
                             })
@@ -657,6 +665,7 @@ let getData = function getDataForFields(tableName,con,dynamodb){
                         if(result.records.length >0){
                             var batchWriteAWSCall = new batchWriteAWS(tableName,result,con,dynamodb);  
                             batchWriteAWSCall.then((response)=>{
+                                logger.debug('Resolved batchWriteAWS---in getData');
                                 logger.debug(response);
                                 return handleQueryMore(tableName,result.nextRecordsUrl,con,dynamodb);
                             })
