@@ -231,8 +231,8 @@ let crtTable = function createTable(tableName){
             }
         ],
         ProvisionedThroughput: {
-            ReadCapacityUnits: 50,
-            WriteCapacityUnits: 50
+            ReadCapacityUnits: 100,
+            WriteCapacityUnits: 100
         }
     };
     return new Promise((resolve,reject)=>{
