@@ -244,6 +244,29 @@ let deleteOps =function delTable(tableName){
     });
 })
 }
+let updateCapacity = function updateThroughput(tableName,con,db){
+    logger.debug(tableName);
+    var params ={
+        ProvisionedThroughput: {
+            ReadCapacityUnits: 10, 
+            WriteCapacityUnits: 10
+           }, 
+           TableName: tableName
+    };
+    return new Promise((resolve,reject)=>{
+        db.updateTable(params, function(err, data) {
+            if (err) {
+                logger.debug(tableName+':'+'NotReducedThroughput');
+                resolve({[tableName] : 'NotReducedThroughput'});
+            } 
+            else   {
+                logger.debug(tableName+':'+'ReducedThroughput'); 
+                resolve({[tableName] : 'ReducedThroughput'});
+            }          
+          });
+    })    
+
+}
 let bckTable = function backupTable(tableName){
     logger.debug('starting backup for table: '+ tableName);
     var params = {
@@ -284,6 +307,16 @@ let crtBckTable = function createOrBackupTable(tableObj){
     })
 }
 
+let reduceCapacity = function handleInsertData(tableObj,con,db){
+    return new Promise((resolve,reject)=>{
+        logger.debug(tableObj);
+        let updateTable = updateCapacity(Object.keys(tableObj)[0],con,db);
+        updateTable.then((updteDataRes)=>{
+            resolve(updteDataRes);
+        })
+    })
+}
+
 let chooseCreateOrDeleteCreate = function handleInsertData(tableObj,con,db){
     return new Promise((resolve,reject)=>{
         logger.debug(tableObj);
@@ -317,6 +350,11 @@ let CRUDOps = function processDataObjects(tables,con,db){
     logger.debug('---CRUD OPS----');
       let crudTables = tables.map((table) =>chooseCreateOrDeleteCreate(table,con,db));
       return Promise.all(crudTables);
+}
+let throughputOps = function(tables,con,db){
+    logger.debug('---Throughput OPS----');
+    let capacityUnits = tables.map((table) =>reduceCapacity(table,con,db));
+      return Promise.all(capacityUnits);
 }
 
 let sfdcFields = function getFieldsOfObject(tableName,con){
@@ -647,6 +685,10 @@ function main() {
         logger.debug('LAST...');
         logger.debug(result);
         //res.end(result);
+        return throughputOps(result,con,db);
+    })
+    .then((finalRes)=>{
+        logger.debug(finalRes);
     })
     .catch((error)=>{
         logger.debug(error);
