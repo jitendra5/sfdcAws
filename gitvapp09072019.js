@@ -812,7 +812,7 @@ app.post('/api1.0/cloudbyz/verifyAws',urlencodedParser, function (req, res) {
         // For security reasons, do not store AWS Credentials in your files. Use Amazon Cognito/ Http request.
         secretAccessKey: req.body.secretAccessKey
     });
-    var dynamodb = new AWS.DynamoDB();
+    var dynamodb = new AWS.DynamoDB({apiVersion: '2012-08-10',maxRetries: 15, retryDelayOptions: {base: 500}});
     var request = dynamodb.listTables();
     request.send();
     request.on('success', function(response) {
