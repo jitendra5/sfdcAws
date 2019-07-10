@@ -3,7 +3,7 @@ var http           = require( 'http' );
 var jsforce        = require('jsforce');
 var bodyParser = require('body-parser');
 var each = require('async-each');
-const pLimit = require('p-limit');
+//const pLimit = require('p-limit');
 //const {default: PQueue} = require('p-queue');
 const PromisePool = require('es6-promise-pool')
 //var async = require('asyncawait/async');
@@ -14,8 +14,8 @@ var app            = express();
 //var async = require("async");
 var log4js = require('log4js');
 let tStamp =Date.now();
-var maxParallelRequests = 1;
-const limit = pLimit(3);
+//var maxParallelRequests = 1;
+//const limit = pLimit(3);
 //const limitTables = pLimit(1);
 //const queue = new PQueue({concurrency: 5});
 log4js.configure({ // configure to use all types in different files.
@@ -420,7 +420,6 @@ let batchOps = function runBatch(dynamodb,params){
 }
 //let backoff=1;
 let batchWriteAwsIterator= function insertBatch(tableName,split,con,dynamodb){
-    logger.debug('------batchWriteAwsIterator--------');
     return new Promise((resolve,reject)=>{
         logger.debug('Start of batch...'+ tableName);
                 var params = {
@@ -486,11 +485,11 @@ let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
             })*/
             
             //try introducing delay here and see if the batch iterator can also be slowed.
-            //let runBatchIteratorOnEachChunck = splitArray.map((split) => batchWriteAwsIterator(tableName,split,con,dynamodb));
+            let runBatchIteratorOnEachChunck = splitArray.map((split) => batchWriteAwsIterator(tableName,split,con,dynamodb));
             //let runBatchIteratorOnEachChunck = splitArray.map(split => queue.add(() => batchWriteAwsIterator(tableName,split,con,dynamodb)) );
-            let runBatchIteratorOnEachChunck = splitArray.map(split => {
+            /*let runBatchIteratorOnEachChunck = splitArray.map(split => {
                 return limit(()=>batchWriteAwsIterator(tableName,split,con,dynamodb));
-            });
+            });*/
                 //limit(()=>batchWriteAwsIterator(tableName,split,con,dynamodb)));
             Promise.all(runBatchIteratorOnEachChunck).then((res)=>{
                  logger.debug(res);
