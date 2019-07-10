@@ -3,8 +3,8 @@ var http           = require( 'http' );
 var jsforce        = require('jsforce');
 var bodyParser = require('body-parser');
 var each = require('async-each');
-var async = require('asyncawait/async');
-var await = require('asyncawait/await');
+//var async = require('asyncawait/async');
+//var await = require('asyncawait/await');
 const AWS = require('aws-sdk');
 var app            = express();
 //var async = require("async");
@@ -17,7 +17,7 @@ log4js_extend(log4js, {
 const logger = log4js.getLogger("category");
 logger.level ='debug';
 
-const checkTable = require('./checkIfTableExists.js');
+//const checkTable = require('./checkIfTableExists.js');
 
 app.set( 'port', process.env.PORT || 5000 );
 var jsonParser = bodyParser.json();
