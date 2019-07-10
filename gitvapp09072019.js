@@ -560,7 +560,7 @@ let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength
                             logger.debug('RESOLVED IN THE ITERATOR');
                             logger.debug(objectName);
                              //setTimeout(()=>{
-                                return {[objectName] : 'success'};
+                                return {[objectName] : 'DataInserted'};
                                 //},1000);
                         }
                        
