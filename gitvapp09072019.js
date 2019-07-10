@@ -58,7 +58,7 @@ app.post('/api1.0/cloudbyz/sfdcObjects',urlencodedParser, function (req, res) {
 
 //Now that we are authenticated with AWS, lets create an insatnce of Dynamodb to perform required operations.
 
-var dynamodb = new AWS.DynamoDB({apiVersion: '2012-08-10',maxRetries: 15, retryDelayOptions: {base: 500}});
+var dynamodb = new AWS.DynamoDB({apiVersion: '2012-08-10',maxRetries: 15, retryDelayOptions: {base: 200}});
 var counter=0;
 let tableCounter =0;
 let batchWriteCheck=0;
@@ -223,8 +223,8 @@ let crtTable = function createTable(tableName){
             }
         ],
         ProvisionedThroughput: {
-            ReadCapacityUnits: 10,
-            WriteCapacityUnits: 10
+            ReadCapacityUnits: 20,
+            WriteCapacityUnits: 20
         }
     };
     return new Promise((resolve,reject)=>{
