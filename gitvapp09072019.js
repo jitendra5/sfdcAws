@@ -223,8 +223,8 @@ let crtTable = function createTable(tableName){
             }
         ],
         ProvisionedThroughput: {
-            ReadCapacityUnits: 20,
-            WriteCapacityUnits: 20
+            ReadCapacityUnits: 100,
+            WriteCapacityUnits: 100
         }
     };
     return new Promise((resolve,reject)=>{
@@ -506,7 +506,7 @@ let batchOps = function runBatch(dynamodb,params){
     })
 }
 
-let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength,totalData,dynamodb,backoffVar){
+let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength,totalData,dynamodb){
     
     return new Promise((resolve,reject)=>{
         logger.debug('Start of batch, dataLength :'+ dataLength);
@@ -545,10 +545,8 @@ let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength
                         if(dataLength - 25 > 0){
                             logger.debug('After batch ran, dataLength :'+ dataLength-end);
                             //setTimeout(()=>{
-                                backoffVar++;
-                                logger.debug('---->backoffVar: '+backoffVar);
-                                return batchWriteAwsIterator(objectName,end,end+25,dataLength-25,totalData,dynamodb,backoffVar);
-                            //},1000*backoffVar);
+                                return batchWriteAwsIterator(objectName,end,end+25,dataLength-25,totalData,dynamodb);
+                            //},1000*);
                             
                            
                         } 
@@ -569,8 +567,8 @@ let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
     return new Promise((resolve,reject)=>{
         var count=0; var check25=25;
         if(data.records.length>0){
-            let backoffVar=0;
-            let batchCall =batchWriteAwsIterator(tableName,count,check25,data.records.length,data,dynamodb,backoffVar);
+            //let backoffVar=0;
+            let batchCall =batchWriteAwsIterator(tableName,count,check25,data.records.length,data,dynamodb);
             //let xx= 
             batchCall.then((batchResult)=>{
                 logger.debug(batchResult);
