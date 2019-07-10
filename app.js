@@ -153,7 +153,7 @@ let sfdcConnFn =function callJSForce(tables){
     
     })
 }
-/*let splitArrayIntoChuncks = function chunkArray(myArray, chunk_size){
+let splitArrayIntoChuncks = function chunkArray(myArray, chunk_size){
     logger.debug('Split Array is getting called...');
     var index = 0;
     var arrayLength = myArray.length;
@@ -168,7 +168,7 @@ let sfdcConnFn =function callJSForce(tables){
         logger.debug(tempArray.length);
         resolve(tempArray);
     });
-}*/
+}
 let tableStatus = function verifyTables(sfdcObjects,dynamoTables){
     let objs= sfdcObjects.split(',');
     logger.debug(sfdcObjects);
