@@ -544,7 +544,7 @@ let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength
                             logger.debug('After batch ran, dataLength :'+ dataLength-end);
                             setTimeout(()=>{
                                 return batchWriteAwsIterator(objectName,end,end+25,dataLength-25,totalData,dynamodb);
-                            },1000);
+                            },2000);
                             
                            
                         } 
