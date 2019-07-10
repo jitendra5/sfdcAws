@@ -3,11 +3,8 @@ var http           = require( 'http' );
 var jsforce        = require('jsforce');
 var bodyParser = require('body-parser');
 var each = require('async-each');
-//var async = require('asyncawait/async');
-//var await = require('asyncawait/await');
 const AWS = require('aws-sdk');
 var app            = express();
-//var async = require("async");
 var log4js = require('log4js');
 let tStamp =Date.now();
 log4js.configure({ // configure to use all types in different files.
@@ -29,11 +26,6 @@ log4js_extend(log4js, {
   });
 
   var logger = log4js.getLogger('debug');
-
-//const logger = log4js.getLogger("category");
-//logger.level ='debug';
-
-//const checkTable = require('./checkIfTableExists.js');
 
 app.set( 'port', process.env.PORT || 5000 );
 var jsonParser = bodyParser.json();
@@ -153,22 +145,6 @@ let sfdcConnFn =function callJSForce(tables){
     
     })
 }
-/*let splitArrayIntoChuncks = function chunkArray(myArray, chunk_size){
-    logger.debug('Split Array is getting called...');
-    var index = 0;
-    var arrayLength = myArray.length;
-    logger.debug('arrayLength: '+arrayLength);
-    return new Promise((resolve,reject)=>{
-    var tempArray = [];
-    for (index = 0; index < arrayLength; index += chunk_size) {
-        myChunk = myArray.slice(index, index+chunk_size);
-        // Do something if you want with the group
-        tempArray.push(myChunk);
-    }
-        logger.debug(tempArray.length);
-        resolve(tempArray);
-    });
-}*/
 let tableStatus = function verifyTables(sfdcObjects,dynamoTables){
     let objs= sfdcObjects.split(',');
     logger.debug(sfdcObjects);
@@ -367,128 +343,7 @@ let sfdcFields = function getFieldsOfObject(tableName,con){
           });
    })
 }
-/*let delayBatch = function avoidProvisonedThroughputError(dynamodb,params,msecs){
-    setTimeout(()=>{
-        return batchOps(dynamodb,params);
-    },msecs)
-}*/
-/*let failedBatched=[];
-let batchOps = function runBatch(dynamodb,params){
-    //logger.debug(dynamodb);
-    //logger.debug(params);
-    return new Promise((resolve,reject)=>{
-        //setTimeout(()=>{
-            dynamodb.batchWriteItem(params, function(err, data) {
-                if (err) {
-                    logger.debug(err);
-                    if(err.code =='ProvisionedThroughputExceededException'){
-                        failedBatched.push(params);
-                        //resolve('failed');
-                        logger.debug(failedBatched);
-                        logger.debug('HANDLING ProvisionedThroughputExceededException----');
-                        /*setTimeout(()=>{
-                            batchOps(dynamodb,params);
-                            resolve(failedBatched);
-                        },1000);*/
-                    /*}
-                    
-                }
-                else {
-                    logger.debug(data);
-                    var params = {};
-                    params.RequestItems = data.UnprocessedItems; 
-                    if(Object.keys(params.RequestItems).length != 0) {
-                        setTimeout(()=>{
-                            batchOps(dynamodb,params);
-                        },1000);
-                    }
-                    else{
-                        resolve('success');
-                    }
-                }    
-            });
-        //},200*backoff)
-    })
-}*/
-/*let backoff=1;
-let batchWriteAwsIterator= function insertBatch(tableName,split,con,dynamodb){
-    return new Promise((resolve,reject)=>{
-        logger.debug('Start of batch...'+ tableName);
-                var params = {
-                    RequestItems: {
-                    },
-                    'ReturnConsumedCapacity': 'INDEXES',
-                };
-                params.RequestItems[tableName] =[];
-                for(var i=0;i<split.length;i++){
-                    var recordKeys =[];
-                    for(var k in split[i]) 
-                        recordKeys.push(k);
-                    var pRequest={};
-                    var PutRequest={};
-                    var Item ={};
-                    for(var j=0;j<recordKeys.length;j++){
-                        var field=recordKeys[j];
-                        var value= split[i][field];
-                        var valObj={};
-                        if(value === undefined || value == null){
-                            valObj['S']='NULL';
-                        }
-                        else{
-                            valObj['S']=value.toString();
-                        }
-                        Item[field] =valObj;
-                    }
-                    PutRequest['Item']=Item;
-                    pRequest['PutRequest'] =PutRequest;
-                    params.RequestItems[tableName].push(pRequest);
-                    }
-                    var batchOpsCall = batchOps(dynamodb,params);
-                    batchOpsCall.then((res)=>{
-                        backoff++;
-                        logger.debug('batch ops for '+ tableName+ ' : '+res);
-                        resolve('Batch for Split Ended.'+tableName);
-                    });
-                    /*var slowDownBatch =delayBatch(dynamodb,params,500);
-                    slowDownBatch.then((res)=>{
-                        logger.debug('batch ops for '+ tableName+ ' : '+res);
-                        resolve('Batch for Split Ended.'+tableName);
-                    });*/
-   // })
-//}*/
 
-/*let batchCheck=0;
-let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
-    let splitArray =[];
-    return new Promise((resolve,reject)=>{
-        let chuncks =splitArrayIntoChuncks(data.records,20);
-        chuncks.then((res)=>{
-            logger.debug(res.length);
-            splitArray=res;
-            //try introducing delay here and see if the batch iterator can also be slowed.
-            let backoff=0;
-            let runBatchIteratorOnEachChunck = splitArray.map((split,backoff) => {
-                setTimeout(()=>{
-                    batchWriteAwsIterator(tableName,split,con,dynamodb);
-                },100*backoff);
-                backoff++;
-            });
-             Promise.all(runBatchIteratorOnEachChunck).then((res)=>{
-                 logger.debug(res);
-                 resolve({[tableName]:'DataInserted'});
-             });
-             /*if(batchCheck < res.length){
-                logger.debug('Inside batchCheck: '+ batchCheck + ' res.length: '+res.length );
-                batchWriteAwsIterator(tableName,res[batchCheck],con,dynamodb);
-                batchCheck++;
-             }
-             else{
-                 logger.debug('All Chuncks inserted through batch...');
-                 resolve('batch Success');
-             }*/
-       /* })
-    })
-}*/
 let batchOps = function runBatch(dynamodb,params){
     //logger.debug(dynamodb);
     //logger.debug(params);
