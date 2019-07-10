@@ -505,7 +505,9 @@ let batchOps = function runBatch(dynamodb,params){
         });
     })
 }
-let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength,totalData,dynamodb){
+
+let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength,totalData,dynamodb,backoffVar){
+    
     return new Promise((resolve,reject)=>{
         logger.debug('Start of batch, dataLength :'+ dataLength);
                 var params = {
@@ -543,8 +545,10 @@ let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength
                         if(dataLength - 25 > 0){
                             logger.debug('After batch ran, dataLength :'+ dataLength-end);
                             setTimeout(()=>{
-                                return batchWriteAwsIterator(objectName,end,end+25,dataLength-25,totalData,dynamodb);
-                            },2000);
+                                backoffVar++;
+                                logger.debug('---->backoffVar: '+backoffVar);
+                                return batchWriteAwsIterator(objectName,end,end+25,dataLength-25,totalData,dynamodb,backoffVar);
+                            },1000*backoffVar);
                             
                            
                         } 
@@ -565,7 +569,8 @@ let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
     return new Promise((resolve,reject)=>{
         var count=0; var check25=25;
         if(data.records.length>0){
-            let batchCall =batchWriteAwsIterator(tableName,count,check25,data.records.length,data,dynamodb);
+            let backoffVar=0;
+            let batchCall =batchWriteAwsIterator(tableName,count,check25,data.records.length,data,dynamodb,backoffVar);
             //let xx= 
             batchCall.then((batchResult)=>{
                 logger.debug(batchResult);
