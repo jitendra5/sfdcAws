@@ -58,7 +58,7 @@ app.post('/api1.0/cloudbyz/sfdcObjects',urlencodedParser, function (req, res) {
 
 //Now that we are authenticated with AWS, lets create an insatnce of Dynamodb to perform required operations.
 
-var dynamodb = new AWS.DynamoDB({apiVersion: '2012-08-10'});
+var dynamodb = new AWS.DynamoDB({apiVersion: '2012-08-10',maxRetries: 15, retryDelayOptions: {base: 500}});
 var counter=0;
 let tableCounter =0;
 let batchWriteCheck=0;
@@ -544,11 +544,11 @@ let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength
                         logger.debug('batch ops for '+ objectName+ ' : '+res);
                         if(dataLength - 25 > 0){
                             logger.debug('After batch ran, dataLength :'+ dataLength-end);
-                            setTimeout(()=>{
+                            //setTimeout(()=>{
                                 backoffVar++;
                                 logger.debug('---->backoffVar: '+backoffVar);
                                 return batchWriteAwsIterator(objectName,end,end+25,dataLength-25,totalData,dynamodb,backoffVar);
-                            },1000*backoffVar);
+                            //},1000*backoffVar);
                             
                            
                         } 
