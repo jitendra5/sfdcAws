@@ -278,6 +278,7 @@ let bckTable = function backupTable(tableName){
     return new Promise((resolve,reject)=>{
         dynamodb.createBackup(params, function(err, data) {
             if (err) {
+                logger.debug('err: '+err);
                 logger.debug(tableName+':'+'NotBackedup');
                 resolve({[tableName] : 'NotBackedup'});
             } 

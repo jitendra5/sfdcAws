@@ -569,13 +569,12 @@ let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
         if(data.records.length>0){
             //let backoffVar=0;
             let batchCall =batchWriteAwsIterator(tableName,count,check25,data.records.length,data,dynamodb);
-            //let xx= 
-            batchCall.then((batchResult)=>{
+            let xx= batchCall.then((batchResult)=>{
                 logger.debug(batchResult);
-                //return batchResult;
-                resolve(batchResult);
+                return batchResult;
+                //resolve(batchResult);
             });
-            //resolve(xx);
+            resolve(xx);
         }
     })
 }
