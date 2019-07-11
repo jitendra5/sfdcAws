@@ -182,6 +182,29 @@ let tableAvailable = function isTableAvailable(tableName, avilStr){
           });
     })
 }
+let objectOps = function(finalRes,con,db,backupRecId){
+    let objectNames='';
+    for(let i of finalRes){
+        objectNames+=Object.keys(i)[0]+',';
+    }
+    logger.debug('1. objectNames: '+ objectNames);
+    if(objectNames.length>0){
+        objectNames = objectNames.substring(0,objectNames.length-1);
+    }
+    logger.debug('2. objectNames: '+ objectNames);
+    con.sobject("BackupSelection__c").update([
+        { Id : backupRecId, Backup_Status__c : 'Success',Objects_backedup__c: objectNames},
+      ],
+      function(err, rets) {
+        if (err) { return console.error(err); }
+        for (var i=0; i < rets.length; i++) {
+          if (rets[i].success) {
+            logger.debug("Updated Successfully : " + rets[i].id);
+          }
+        }
+        resolve('Object updated!!');
+      });
+}
 let crtTable = function createTable(tableName){
    // logger.debug('creating table for: '+ tableName);
     var params = {
@@ -689,6 +712,12 @@ function main() {
     })
     .then((finalRes)=>{
         logger.debug(finalRes);
+        let backupRecId =req.body.recId;
+        return objectOps(finalRes,con,db,backupRecId);
+    })
+    .then((objectOpsRes)=>{
+        logger.debug(objectOpsRes);
+        logger.debug('------DONE------');
     })
     .catch((error)=>{
         logger.debug(error);
