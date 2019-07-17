@@ -205,6 +205,11 @@ let objectOps = function(finalRes,con,db,backupRecId){
         resolve('Object updated!!');
       });
 }
+/**
+ * 
+ * @param {The name of table to create} tableName 
+ * The function creates a DynamoDb table.
+ */
 let crtTable = function createTable(tableName){
    // logger.debug('creating table for: '+ tableName);
     var params = {
@@ -243,6 +248,11 @@ let crtTable = function createTable(tableName){
     
 })
 }
+/**
+ * 
+ * @param {* The name of table to delete } tableName 
+ * The function deletes a table from Dynamodb.
+ */
 let deleteOps =function delTable(tableName){
     var params = { 
         TableName : tableName
@@ -756,6 +766,36 @@ app.post('/api1.0/cloudbyz/verifyAws',urlencodedParser, function (req, res) {
     res.send(JSON.stringify({'Status': error.message ,'statusCode':error.statusCode}));
   });
     
+});
+app.post('/api1.0/cloudbyz/verifysfdc',urlencodedParser, function (req, res) {
+    logger.debug('uName '+req.body.uName);
+    logger.debug('PWD: '+req.body.pwd);
+    logger.debug('Token: '+req.body.rToken);
+    logger.debug('url: '+req.body.url);
+    let pwdComb =req.body.pwd +req.body.rToken;
+    let resp={};
+        var conn = new jsforce.Connection({
+            // you can change loginUrl to connect to sandbox or prerelease env.
+            loginUrl : req.body.url
+            });
+            conn.login(req.body.uName, pwdComb, function(err, userInfo) {
+            if (err) { 
+                resp={
+                    con :'error',
+                    status:'400'
+                };
+                res.send({'Status': err.message ,'statusCode':'404'});
+            }
+            else{
+                logger.debug("User ID: " + userInfo.id);
+                logger.debug("Org ID: " + userInfo.organizationId);
+                resp={
+                    con :conn,
+                    status:'200'
+                };
+                res.send({'Status': 'Success' ,'statusCode':'200'});
+            }//sucess conn else
+            });//conn login fn.
 });
 http.createServer( app ).listen( app.get( 'port' ), function (){
   logger.debug( '######Cloudbyz Express server listening on port: ' + app.get( 'port' ));
