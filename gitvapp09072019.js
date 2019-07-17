@@ -183,7 +183,8 @@ let tableAvailable = function isTableAvailable(tableName, avilStr){
     })
 }
 let objectOps = function(finalRes,con,db,backupRecId){
-    let objectNames='';
+    return new Promise((resolve,reject)=>{
+        let objectNames='';
     for(let i of finalRes){
         objectNames+=Object.keys(i)[0]+',';
     }
@@ -196,7 +197,10 @@ let objectOps = function(finalRes,con,db,backupRecId){
         { Id : backupRecId, Backup_Status__c : 'Success',Objects_backedup__c: objectNames},
       ],
       function(err, rets) {
-        if (err) { return console.error(err); }
+        if (err) { 
+            //return console.error(err);
+            resolve(err);
+         }
         for (var i=0; i < rets.length; i++) {
           if (rets[i].success) {
             logger.debug("Updated Successfully : " + rets[i].id);
@@ -204,6 +208,7 @@ let objectOps = function(finalRes,con,db,backupRecId){
         }
         resolve('Object updated!!');
       });
+    })
 }
 /**
  * 
