@@ -521,6 +521,7 @@ function handleQueryMore(tableName,result,conn,dynamodb) {
         conn.queryMore(result, function(err, resultMore) {
         if (err) {
             logger.debug(err);
+            return({[tableName]: 'FailedDataInserted'});
         }
         //do stuff with result
         else {
