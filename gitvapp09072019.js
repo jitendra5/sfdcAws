@@ -188,11 +188,11 @@ let objectOps = function(finalRes,con,db,backupRecId){
     for(let i of finalRes){
         objectNames+=Object.keys(i)[0]+',';
     }
-    logger.debug('1. objectNames: '+ objectNames);
+    //logger.debug('1. objectNames: '+ objectNames);
     if(objectNames.length>0){
         objectNames = objectNames.substring(0,objectNames.length-1);
     }
-    logger.debug('2. objectNames: '+ objectNames);
+    //logger.debug('2. objectNames: '+ objectNames);
     con.sobject("BackupSelection__c").update([
         { Id : backupRecId, Backup_Status__c : 'Success',Objects_backedup__c: objectNames},
       ],
@@ -203,7 +203,7 @@ let objectOps = function(finalRes,con,db,backupRecId){
          }
         for (var i=0; i < rets.length; i++) {
           if (rets[i].success) {
-            logger.debug("Updated Successfully : " + rets[i].id);
+            logger.debug("Backup Section Object Updated Successfully : " + rets[i].id);
           }
         }
         resolve('Object updated!!');
@@ -283,7 +283,7 @@ let deleteOps =function delTable(tableName){
 })
 }
 let updateCapacity = function updateThroughput(tableName,con,db){
-    logger.debug(tableName);
+    logger.debug('Updating Throughput: '+ tableName);
     var params ={
         ProvisionedThroughput: {
             ReadCapacityUnits: 10, 
@@ -347,7 +347,7 @@ let crtBckTable = function createOrBackupTable(tableObj){
 
 let reduceCapacity = function handleInsertData(tableObj,con,db){
     return new Promise((resolve,reject)=>{
-        logger.debug(tableObj);
+        //logger.debug(tableObj);
         let updateTable = updateCapacity(Object.keys(tableObj)[0],con,db);
         updateTable.then((updteDataRes)=>{
             resolve(updteDataRes);
@@ -358,7 +358,7 @@ let reduceCapacity = function handleInsertData(tableObj,con,db){
 let chooseCreateOrDeleteCreate = function handleInsertData(tableObj,con,db){
     return new Promise((resolve,reject)=>{
         logger.debug(tableObj);
-        logger.debug(typeof tableObj);
+        //logger.debug(typeof tableObj);
         logger.debug(Object.values(tableObj));
         if(Object.values(tableObj).includes('created')){
             let insertData = processData(Object.keys(tableObj)[0],con,db);
@@ -431,7 +431,7 @@ let batchOps = function runBatch(dynamodb,params){
                 resolve('DataInserted');
             }
             else {
-                logger.debug(data); 
+                //logger.debug(data); 
                 var unProcessParam = {};
                 unProcessParam.RequestItems = data.UnprocessedItems;
                 if(Object.keys(unProcessParam.RequestItems).length != 0) {
@@ -478,7 +478,7 @@ let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength
                     }
                     var batchOpsCall = batchOps(dynamodb,params);
                     var x = batchOpsCall.then((res)=>{
-                        logger.debug('batch ops for '+ objectName+ ' : '+res);
+                       // logger.debug('batch ops for '+ objectName+ ' : '+res);
                         if(dataLength - 25 > 0){
                             logger.debug('After batch ran, dataLength :'+ dataLength-end);
                             //setTimeout(()=>{
@@ -720,7 +720,7 @@ function main() {
 
     })
     .then((result)=>{
-        logger.debug('LAST...');
+        //logger.debug('LAST...');
         logger.debug(result);
         //res.end(result);
         return throughputOps(result,con,db);
