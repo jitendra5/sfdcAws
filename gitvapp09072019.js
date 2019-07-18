@@ -517,11 +517,12 @@ let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
 }
 function handleQueryMore(tableName,result,conn,dynamodb) {
     logger.debug('Inside handleQueryMore method---'+result);
+    logger.debug(conn);
     return new Promise((resolve,reject)=>{
         conn.queryMore(result, function(err, resultMore) {
         if (err) {
             logger.debug(err);
-            return({[tableName]: 'FailedDataInserted'});
+            return({[tableName]: 'FailedDataInsert'});
         }
         //do stuff with result
         else {
