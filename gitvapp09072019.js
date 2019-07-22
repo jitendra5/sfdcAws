@@ -699,6 +699,7 @@ function main() {
     getTables.then((result)=>{
         logger.debug("#####Finally total fetched Tables: "+result.length);
         //logger.debug(result);
+        res.send({'Status': 'In Progress' ,'statusCode':'200'});
         return sfdcConnFn(result);
     })
     .then((result)=>{
@@ -735,11 +736,11 @@ function main() {
     .then((objectOpsRes)=>{
         logger.debug(objectOpsRes);
         logger.debug('------DONE------');
-        res.send({'Status': 'Success' ,'statusCode':'200'});
+        res.status(200).end();
     })
     .catch((error)=>{
         logger.debug(error);
-        res.send({'Status': 'Error' ,'statusCode':'404'});
+        res.status(404).end();
     })
 
 }
