@@ -735,9 +735,11 @@ function main() {
     .then((objectOpsRes)=>{
         logger.debug(objectOpsRes);
         logger.debug('------DONE------');
+        res.send({'Status': 'Success' ,'statusCode':'200'});
     })
     .catch((error)=>{
         logger.debug(error);
+        res.send({'Status': 'Error' ,'statusCode':'404'});
     })
 
 }
