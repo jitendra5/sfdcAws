@@ -828,7 +828,7 @@ app.post('/api1.0/cloudbyz/getRecordCount',urlencodedParser, function (req, res)
                         status:'400'
                     };
                     //res.send({'Status': err.message ,'statusCode':'404'});
-                    resolve({status:'error', con: 'error'});
+                    reject({status:'error', con: 'error'});
                 }
                 else{
                     logger.debug("User ID: " + userInfo.id);
@@ -852,7 +852,7 @@ app.post('/api1.0/cloudbyz/getRecordCount',urlencodedParser, function (req, res)
             conn.query(soqlQuery, function(err, result) {
                 if (err) { 
                     console.error(err);
-                    resolve({[objectName]:err});
+                    reject({[objectName]:err});
                  }
                  else{
                     console.log("fetched : ");
