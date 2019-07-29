@@ -862,8 +862,8 @@ app.post('/api1.0/cloudbyz/getRecordCount',urlencodedParser, function (req, res)
               });
         });
     }
-    let countOPS = function countRecs(objects,conn){
-        let recordCount = objects.map((obj)=>queryCount(obj,conn));
+    let countOPS = function countRecs(sfdcObjects,conn){
+        let recordCount = sfdcObjects.map((obj)=>queryCount(obj,conn));
         return Promise.all(recordCount);
     }
     function main(){
