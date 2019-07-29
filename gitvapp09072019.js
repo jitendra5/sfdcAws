@@ -852,7 +852,7 @@ app.post('/api1.0/cloudbyz/getRecordCount',urlencodedParser, function (req, res)
             conn.query(soqlQuery, function(err, result) {
                 if (err) { 
                     console.error(err);
-                    resolve({[objectName]:err.message});
+                    resolve({[objectName]:'NotQueryable'});
                  }
                  else{
                     console.log("fetched : ");
