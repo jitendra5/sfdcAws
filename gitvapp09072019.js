@@ -881,7 +881,8 @@ app.post('/api1.0/cloudbyz/getRecordCount',urlencodedParser, function (req, res)
             })
             .then((result)=>{
                 logger.debug(result);
-                res.json(result);
+                //res.json(result);
+                res.send(JSON.stringify({'recordCount': result,'Response':'200'}));
             })
             .catch(err =>{
                 console.log(err);
