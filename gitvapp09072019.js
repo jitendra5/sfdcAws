@@ -873,7 +873,10 @@ app.post('/api1.0/cloudbyz/getRecordCount',urlencodedParser, function (req, res)
             connect.then((result)=>{
                 logger.debug(result);
                 if(result.status =='success'){
-                    return countOPS(req.body.objNames,result.con);
+                    logger.debug(req.body.objNames);
+                    let objNamesArr =req.body.objNames.split(',');
+                    logger.debug('objNamesArr: '+ objNamesArr);
+                    return countOPS(objNamesArr,result.con);
                 }
             })
             .then((result)=>{
