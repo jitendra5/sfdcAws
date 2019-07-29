@@ -26,7 +26,7 @@ log4js_extend(log4js, {
   });
 
   var logger = log4js.getLogger('debug');
-
+let conn;
 app.set( 'port', process.env.PORT || 5000 );
 var jsonParser = bodyParser.json();
 var urlencodedParser = bodyParser.urlencoded({ extended: false })
@@ -799,6 +799,7 @@ app.post('/api1.0/cloudbyz/verifysfdc',urlencodedParser, function (req, res) {
             else{
                 logger.debug("User ID: " + userInfo.id);
                 logger.debug("Org ID: " + userInfo.organizationId);
+                conn =conn;
                 resp={
                     con :conn,
                     status:'200'
@@ -806,6 +807,92 @@ app.post('/api1.0/cloudbyz/verifysfdc',urlencodedParser, function (req, res) {
                 res.send({'Status': 'Success' ,'statusCode':'200'});
             }//sucess conn else
             });//conn login fn.
+});
+app.post('/api1.0/cloudbyz/getRecordCount',urlencodedParser, function (req, res) {
+    logger.debug(req.body.objNames);
+    let connectTosfdc = function sfdcConnect(req){
+        logger.debug('uName '+req.body.uName);
+        logger.debug('PWD: '+req.body.pwd);
+        logger.debug('Token: '+req.body.rToken);
+        logger.debug('url: '+req.body.url);
+        let pwdComb =req.body.pwd +req.body.rToken;
+        return new Promise((resolve,reject)=>{
+            var conn = new jsforce.Connection({
+                // you can change loginUrl to connect to sandbox or prerelease env.
+                loginUrl : req.body.url
+                });
+                conn.login(req.body.uName, pwdComb, function(err, userInfo) {
+                if (err) { 
+                    resp={
+                        con :'error',
+                        status:'400'
+                    };
+                    //res.send({'Status': err.message ,'statusCode':'404'});
+                    resolve({status:'error', con: 'error'});
+                }
+                else{
+                    logger.debug("User ID: " + userInfo.id);
+                    logger.debug("Org ID: " + userInfo.organizationId);
+                    conn =conn;
+                    resp={
+                        con :conn,
+                        status:'200'
+                    };
+                    //res.send({'Status': 'Success' ,'statusCode':'200'});
+                    resolve({status:'success', con: conn});
+                }//sucess conn else
+                });//conn login fn.
+
+        })
+
+    }
+    let queryCount = function queryRecordCount(objectName,conn){
+        let soqlQuery = 'SELECT count(Id) FROM '+objectName;
+        return new Promise((resolve,reject)=>{
+            conn.query(soqlQuery, function(err, result) {
+                if (err) { 
+                    console.error(err);
+                    resolve({[objectName]:err});
+                 }
+                 else{
+                    console.log("fetched : ");
+                    console.log( result.records[0].expr0);
+                    resolve({[objectName]:result.records[0].expr0})
+                 }
+              });
+        });
+    }
+    let countOPS = function countRecs(objects,conn){
+        let recordCount = objects.map((obj)=>queryCount(obj,conn));
+        return Promise.all(recordCount);
+    }
+    function main(){
+        if(req.body.objNames.length >0){
+            //let createBackupTables = tables.map((table) =>crtBckTable(table));
+            let connect = connectTosfdc(req);
+            connect.then((result)=>{
+                logger.debug(result);
+                if(result.status =='success'){
+                    return countOPS(req.body.objNames,result.con);
+                }
+            })
+            .then((result)=>{
+                logger.debug(result);
+                res.json(result);
+            })
+            .catch(err =>{
+                console.log(err);
+                res.json({status:'400', message:'Error'});
+            });
+
+        }
+        else{
+            res.send(JSON.stringify({'Status': 'Select Objects to get reocord count','Response':'400'}));
+        }
+        
+    }
+    main();
+    //res.send(JSON.stringify({'Status': 'SFDC-DynamoDB REST-API Running in AWS','Response':'200'}));
 });
 http.createServer( app ).listen( app.get( 'port' ), function (){
   logger.debug( '######Cloudbyz Express server listening on port: ' + app.get( 'port' ));
