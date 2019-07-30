@@ -420,10 +420,11 @@ let sfdcFields = function getFieldsOfObject(tableName,con){
    })
 }
 
-let batchOps = function runBatch(dynamodb,params){
+let batchOps = function runBatch(dynamodb,params,objectName){
     //logger.debug(dynamodb);
     logger.debug(params);
-    let parameters =Object.values(params);
+    let parameters =params[objectName];
+    logger.debug(parameters);
     for(let para in parameters){
         logger.debug(para);
         logger.debug(para['PutRequest']);
@@ -433,7 +434,7 @@ let batchOps = function runBatch(dynamodb,params){
         dynamodb.batchWriteItem(params, function(err, data) {
             if (err) {
                 logger.debug(err);
-                batchOps(dynamodb,params);
+                batchOps(dynamodb,params,objectName);
                 resolve('DataInserted');
             }
             else {
@@ -442,7 +443,7 @@ let batchOps = function runBatch(dynamodb,params){
                 unProcessParam.RequestItems = data.UnprocessedItems;
                 if(Object.keys(unProcessParam.RequestItems).length != 0) {
                     logger.debug(unProcessParam); 
-                    batchOps(dynamodb,unProcessParam);
+                    batchOps(dynamodb,unProcessParam,objectName);
                 }
                 resolve('DataInserted');
             }    
@@ -483,7 +484,7 @@ let batchWriteAwsIterator = function insertBatch(objectName,start,end,dataLength
                     //logger.debug(pRequest);
                     params.RequestItems[objectName].push(pRequest);
                     }
-                    var batchOpsCall = batchOps(dynamodb,params);
+                    var batchOpsCall = batchOps(dynamodb,params,objectName);
                     var x = batchOpsCall.then((res)=>{
                        // logger.debug('batch ops for '+ objectName+ ' : '+res);
                         if(dataLength - 25 > 0){
