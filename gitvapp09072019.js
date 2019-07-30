@@ -423,6 +423,13 @@ let sfdcFields = function getFieldsOfObject(tableName,con){
 let batchOps = function runBatch(dynamodb,params){
     //logger.debug(dynamodb);
     logger.debug(params);
+    for(var itemKey in params.Item) {
+        for(var itemAttr in params.Item[itemKey]) {
+        var value = params.Item[itemKey][itemAttr];
+        if(value === undefined || value === "") {
+            console.log("item", itemKey, "of type", itemAttr, "is undefined!")
+        }
+      }
     return new Promise((resolve,reject)=>{
         dynamodb.batchWriteItem(params, function(err, data) {
             if (err) {
