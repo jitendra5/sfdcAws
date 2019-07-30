@@ -423,13 +423,11 @@ let sfdcFields = function getFieldsOfObject(tableName,con){
 let batchOps = function runBatch(dynamodb,params){
     //logger.debug(dynamodb);
     logger.debug(params);
-    for(var itemKey in params.Item) {
-        for(var itemAttr in params.Item[itemKey]) {
-        var value = params.Item[itemKey][itemAttr];
-        if(value === undefined || value === "") {
-            logger.debug("item", itemKey, "of type", itemAttr, "is undefined!")
-        }
-      }
+    let parameters =Object.values(params);
+    for(let para in parameters){
+        logger.debug(para);
+        logger.debug(para['PutRequest']);
+        logger.debug(para['Item']);
     }
     return new Promise((resolve,reject)=>{
         dynamodb.batchWriteItem(params, function(err, data) {
@@ -526,7 +524,7 @@ let batchWriteAWS = function writeToAWS(tableName,data,con,dynamodb){
 }
 function handleQueryMore(tableName,result,conn,dynamodb) {
     logger.debug('Inside handleQueryMore method---'+result);
-    logger.debug(conn);
+    //logger.debug(conn);
     return new Promise((resolve,reject)=>{
         conn.queryMore(result, function(err, resultMore) {
         if (err) {
