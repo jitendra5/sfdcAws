@@ -427,7 +427,7 @@ let batchOps = function runBatch(dynamodb,params){
         for(var itemAttr in params.Item[itemKey]) {
         var value = params.Item[itemKey][itemAttr];
         if(value === undefined || value === "") {
-            console.log("item", itemKey, "of type", itemAttr, "is undefined!")
+            logger.debug("item", itemKey, "of type", itemAttr, "is undefined!")
         }
       }
     return new Promise((resolve,reject)=>{
