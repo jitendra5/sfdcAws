@@ -422,7 +422,7 @@ let sfdcFields = function getFieldsOfObject(tableName,con){
 
 let batchOps = function runBatch(dynamodb,params){
     //logger.debug(dynamodb);
-    //logger.debug(params);
+    logger.debug(params);
     return new Promise((resolve,reject)=>{
         dynamodb.batchWriteItem(params, function(err, data) {
             if (err) {
