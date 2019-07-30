@@ -419,7 +419,7 @@ let sfdcFields = function getFieldsOfObject(tableName,con){
           });
    })
 }
-
+let recursiveCheck =0;
 let batchOps = function runBatch(dynamodb,params,objectName){
     //logger.debug(dynamodb);
     logger.debug(params);
@@ -434,7 +434,10 @@ let batchOps = function runBatch(dynamodb,params,objectName){
         dynamodb.batchWriteItem(params, function(err, data) {
             if (err) {
                 logger.debug(err);
-                batchOps(dynamodb,params,objectName);
+                recursiveCheck++;
+                if(recursiveCheck <3){
+                    batchOps(dynamodb,params,objectName);
+                }
                 resolve('DataInserted');
             }
             else {
