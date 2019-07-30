@@ -173,7 +173,8 @@ let tableAvailable = function isTableAvailable(tableName, avilStr){
           dynamodb.waitFor(avilStr, params, function(err, data) {
             if (err) {
                 logger.debug(err, err.stack); 
-                reject(err);
+                //reject(err);
+                resolve('Error');
             }
             else  {
                 //logger.debug(data);
@@ -270,14 +271,19 @@ let deleteOps =function delTable(tableName){
         } else {
             logger.debug("Deleted table. Table description JSON:", JSON.stringify(data, null, 2));
             let isTableAvail =tableAvailable(tableName,'tableNotExists');
-                isTableAvail.then(()=>{
+                isTableAvail.then((res)=>{
                     //resolve({[tableName] : 'Deleted'});
-                    logger.debug(tableName+ ' Deleted Successfully!!');
-                    return crtTable(tableName);
+                    logger.debug(res);
+                    if(res != 'Error'){
+                        logger.debug(tableName+ ' Deleted Successfully!!');
+                        return crtTable(tableName);
+                    }
+                    
                 })
                 .then((res)=>{
                     resolve(res);
                 })
+                
             }
     });
 })
