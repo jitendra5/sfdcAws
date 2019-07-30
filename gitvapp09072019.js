@@ -443,6 +443,7 @@ let batchOps = function runBatch(dynamodb,params){
                 var unProcessParam = {};
                 unProcessParam.RequestItems = data.UnprocessedItems;
                 if(Object.keys(unProcessParam.RequestItems).length != 0) {
+                    logger.debug(unProcessParam); 
                     batchOps(dynamodb,unProcessParam);
                 }
                 resolve('DataInserted');
