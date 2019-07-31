@@ -322,6 +322,7 @@ let bckTable = function backupTable(tableName){
         dynamodb.createBackup(params, function(err, data) {
             if (err) {
                 logger.debug(tableName+':'+'NotBackedup');
+                logger.debug(err);
                 resolve({[tableName] : 'NotBackedup'});
             } 
             else   {
