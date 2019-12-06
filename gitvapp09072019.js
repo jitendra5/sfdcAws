@@ -768,6 +768,9 @@ main();
 
 
 });
+app.get('/',urlencodedParser, function (req, res) {
+    res.send(JSON.stringify({'Status': 'SFDC-DynamoDB REST-API Running in AWS','Response':'200'}));
+});
 app.get('/api1.0/cloudbyz/test',urlencodedParser, function (req, res) {
     res.send(JSON.stringify({'Status': 'SFDC-DynamoDB REST-API Running in AWS','Response':'200'}));
 });
